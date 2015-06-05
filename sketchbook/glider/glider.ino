@@ -30,19 +30,23 @@ static unsigned int input_pos = 0;
 
 void setup() {
   Serial.begin(57600);
-  
   // Setup the GPS
+  ledblink();
+  ledblink();
   pinMode(GPSENABLE, OUTPUT);
-  digitalWrite(GPSENABLE, HIGH);
+//  digitalWrite(GPSENABLE, HIGH);
   // Setup our LEDs
+  ledblink();
   pinMode(LED, OUTPUT);
   pinMode(LED_O, OUTPUT);
   // Setup Servos
+  ledblink();
   pinMode(RIGHT_SERVO, OUTPUT);
   pinMode(LEFT_SERVO, OUTPUT);
   pinMode(DETACH_SERVO, OUTPUT);
   pinMode(PARACHUTE_SERVO, OUTPUT);
   // Attach Servos
+  ledblink();
   rightServo.attach(RIGHT_SERVO);  // attaches the servo on pin 9 to the servo object
   leftServo.attach(LEFT_SERVO);  // attaches the servo on pin 9 to the servo object
   detachServo.attach(DETACH_SERVO);
@@ -51,9 +55,11 @@ void setup() {
   gimbalVServo.attach(GIMBAL_V_SERVO);
   
   // Lock Servo positions
+  ledblink();
   parachuteServo.write(45);
 
   // Setup GPS
+  ledblink();
   gpsSetup();
 }
 
@@ -65,12 +71,13 @@ void readSerial() {
   static char input_line[MAX_INPUT];
 
   if (Serial.available()) {
+    Serial.print("data: ");
     while (Serial.available() > 0) {
       char inByte = Serial.read();
       digitalWrite(LED, HIGH);
-      delay(50);
+      delay(10);
       digitalWrite(LED, LOW);
-      
+
       switch (inByte) {
 
       case ';':   // end of text
@@ -148,7 +155,7 @@ void processData(char * data) {
     char *p = data;
     while ((str = strtok_r(p, ":", &p)) != NULL) {
       if (!strstr(str, "R")) {
-        rtty_txstring(BAUD, str);
+
       }
     }
   }
@@ -174,7 +181,7 @@ void writeGPS(){
     for (byte i = 0, j = 0; i < 82; i++) {
       Serial.write(gpsBuffer[i]);
       digitalWrite(LED, HIGH);
-      delay(50);
+      delay(10);
       digitalWrite(LED, LOW);
     }
   }
@@ -194,6 +201,15 @@ void pointH(int degree) {
 
 void pointV(int degree) {
   gimbalVServo.write(degree);
+}
+
+void ledblink(){
+  digitalWrite(LED, HIGH);
+  digitalWrite(LED_O, HIGH);
+  delay(200);
+  digitalWrite(LED, LOW);
+  digitalWrite(LED_O, LOW);
+  delay(200);
 }
 
 
