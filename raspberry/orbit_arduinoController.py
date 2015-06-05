@@ -2,7 +2,6 @@ import sys
 import datetime, time
 import math
 import logging
-import bluetooth
 
 ##########################################
 # TODO
@@ -40,8 +39,8 @@ def sConnect():
   disconnect()
   try:
     LOG.debug("Creating Socket")
-    server_sock = bluetooth.BluetoothSocket( bluetooth.RFCOMM )
-    SOCK = bluetooth.BluetoothSocket( bluetooth.RFCOMM )
+    server_sock = None # bluetooth.BluetoothSocket( bluetooth.RFCOMM )
+    SOCK = None # bluetooth.BluetoothSocket( bluetooth.RFCOMM )
     LOG.info("Connecting Socket %s %s" % (TARGET, 1))
     SOCK.connect((TARGET, 1))
   except Exception, e:
@@ -57,7 +56,7 @@ def send(cStr):
     SOCK.sendall("%s;" % cStr)
     dat =  SOCK.recv(1024)
   except Exception, e:
-    LOG.critical("Bluetooth Communication Failed!")
+    LOG.critical("Communication Failed!")
     LOG.critical(e)
     sConnect()
     

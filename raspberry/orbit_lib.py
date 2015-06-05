@@ -1,6 +1,5 @@
 import sys
 import types
-import android
 import datetime, time
 import json
 import logging
@@ -8,6 +7,8 @@ from math import *
 
 import orbit_arduinoController as arduinoController
 import orbit_schedule as schedule
+# http://raspi.tv/2013/automatic-exposure-compensation-testing-for-the-pi-camera
+# http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 ##########################################
 # TODO
 ##########################################
@@ -21,8 +22,6 @@ batteryGetTemperature? (batteryStartMonitoring)
 ##########################################
 # GLOBALS
 ##########################################
-DROID       = android.Android()
-PHONEHOME   = "0833457414"
 STATE       = "OK"
 LOG         = logging.getLogger('orbit')
 LOCATION    = None
@@ -40,10 +39,7 @@ DEST_COORD = ROUTE_COORD[0]
 # FUNCTIONS - UTILITY
 ##########################################
 def startUp():
-  DROID.startLocating(5000) # period ms, dist
-  DROID.startSensingTimed(1, 100)
-  DROID.wakeLockAcquirePartial()
-  DROID.batteryStartMonitoring()
+  # DROID.startLocating(5000) # period ms, dist
   speak("Starting Controller")
   arduinoController.init()
   getLocation()
@@ -53,17 +49,17 @@ def startUp():
 def shutDown():
   LOG.info("Shutting Down")
   schedule.shutDown()
-  DROID.stopSensing()
-  DROID.stopLocating()  
-  DROID.batteryStopMonitoring()
-  DROID.wakeLockRelease()
+  # DROID.stopSensing()
+  # DROID.stopLocating()  
+  # DROID.batteryStopMonitoring()
+  # DROID.wakeLockRelease()
 
 def alert(msg):
   title = 'fh-orbit warning'
   text = str(msg)
-  DROID.dialogCreateAlert(title, text)
-  DROID.dialogSetPositiveButtonText('Continue')
-  DROID.dialogShow()
+  # DROID.dialogCreateAlert(title, text)
+  # DROID.dialogSetPositiveButtonText('Continue')
+  # DROID.dialogShow()
   
 def setState(newState):
   """Sets the global state which is used for various updates"""
@@ -72,7 +68,7 @@ def setState(newState):
   
 def speak(text):
   LOG.info("Speaking %s" % text)
-  DROID.ttsSpeak("%s" % text)
+  # DROID.ttsSpeak("%s" % text)
 
 def logLocation(location, orientation):
   logStr = "%s %s %s %s %s %s %s" % (
@@ -86,23 +82,23 @@ def logLocation(location, orientation):
 # FUNCTIONS - GET - DROID
 ##########################################
 def getBatteryStatus():
-  bathealth = DROID.batteryGetHealth().result
-  batlevel = DROID.batteryGetLevel().result
-  battemp = DROID.batteryGetTemperature().result
+  # bathealth = DROID.batteryGetHealth().result
+  # batlevel = DROID.batteryGetLevel().result
+  # battemp = DROID.batteryGetTemperature().result
   return {
-    "health":bathealth, 
-    "level":batlevel, 
-    "temp":battemp
+    "health":None, 
+    "level":None, 
+    "temp":None
   }
 
 def getLocation():
   global LOCATION
   location = {}
-  event = DROID.eventWaitFor('location',10)
+  # event = DROID.eventWaitFor('location',10)
   # Get a location or get lastKNown
-  loc = DROID.readLocation().result
+  # loc = DROID.readLocation().result
   if loc == {}:
-    loc = DROID.getLastKnownLocation().result        
+    # loc = DROID.getLastKnownLocation().result        
     locType = "lastknown"
   # Iterate through it and get back some location data
   for locMethod in ["gps", "network"]:
@@ -118,7 +114,7 @@ def getLocation():
 
 def updateOrientation():
   global ORIENTATION
-  orien     = DROID.sensorsReadOrientation().result
+  # orien     = DROID.sensorsReadOrientation().result
   if isinstance(orien, list) and len(orien) >= 2:
     ORIENTATION[0] = ORIENTATION[1]
     ORIENTATION[1] = ORIENTATION[2]
@@ -171,7 +167,7 @@ def sendTextData(msg=""):
     battData = getBatteryStatus()
     textMsg = "%s::T:(%s)\nO:(%s)\nL(%s)\nD(%s)\nB(%s)\nC(%s)" % (msg, time.time(), orient, loc, dest, battData['level'], battData['temp'])
     LOG.debug("Sending message to (%s) : %s" % (PHONEHOME, textMsg))
-    DROID.smsSend(PHONEHOME,textMsg)
+    # DROID.smsSend(PHONEHOME,textMsg)
   except:
     pass
 
