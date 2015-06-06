@@ -1,11 +1,11 @@
 import sys
-import types
-import time
-import traceback
-import logging
-import signal
-import sys
 import math
+import time
+import types
+import signal
+import logging
+import traceback
+
 # Orbit Imports
 import orbit_lib
 
@@ -37,11 +37,12 @@ PERSIST_DATA = {}
 ##########################################
 # FUNCTIONS - UTIL
 ##########################################
-def setup_custom_logger(name):
-  formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-  handler = logging.StreamHandler()
-  handler.setFormatter(formatter)
+def setup_custom_logger(name=None):
   logger = logging.getLogger(name)
+  handler = logging.StreamHandler(sys.stdout)
+  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  
+  handler.setFormatter(formatter)
   logger.setLevel(LOGLEVEL)
   logger.addHandler(handler)
   return logger
@@ -214,7 +215,6 @@ def switch_recovery():
 def MAIN_LOOP():
   global LOG
   self = sys.modules[__name__]
-  setup_custom_logger("orbit")
   LOG = logging.getLogger("orbit")
   signal.signal(signal.SIGINT, signal_handler)
   orbit_lib.speak("Initialized")
@@ -234,6 +234,8 @@ def MAIN_LOOP():
       orbit_lib.setState("RECOVER")
 
 if __name__ == '__main__':
+  setup_custom_logger()
+
   orbit_lib.startUp()
   MAIN_LOOP()
   orbit_lib.shutDown()

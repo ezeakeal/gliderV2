@@ -1,7 +1,9 @@
 import sys
-import datetime, time
 import math
+import time
+import serial
 import logging
+import datetime
 
 ##########################################
 # TODO
@@ -12,8 +14,8 @@ import logging
 ##########################################
 SERVOTICK = 0.05
 SOCK      = None
-TARGET    = None
-LOG       = logging.getLogger('orbit')
+LOG       = logging.getLogger()
+LAST_DAT  = None
 
 ##########################################
 # FUNCTIONS
@@ -38,11 +40,9 @@ def sConnect():
   global SOCK
   disconnect()
   try:
-    LOG.debug("Creating Socket")
-    server_sock = None # bluetooth.BluetoothSocket( bluetooth.RFCOMM )
-    SOCK = None # bluetooth.BluetoothSocket( bluetooth.RFCOMM )
-    LOG.info("Connecting Socket %s %s" % (TARGET, 1))
-    SOCK.connect((TARGET, 1))
+    LOG.info("Connecting to Serial")
+    SOCK = serial.Serial('/dev/ttyAMA0', 19200, timeout=.1)
+    SOCK.flush()
   except Exception, e:
     LOG.critical(e)
     print e
@@ -53,8 +53,10 @@ def sConnect():
 def send(cStr):
   LOG.debug("SENDING: %s" % cStr)
   try:
-    SOCK.sendall("%s;" % cStr)
-    dat =  SOCK.recv(1024)
+    SOCK.write("%s;" % cStr)
+    SOCK.flush()
+    dat =  SOCK.readline()
+    return dat
   except Exception, e:
     LOG.critical("Communication Failed!")
     LOG.critical(e)
@@ -65,20 +67,41 @@ def setWing(angleLeft, angleRight):
   send("W:%s:%s" % (angleLeft, angleRight))
   time.sleep(SERVOTICK) # sleep a bit
 
+
 def release():
   LOG.debug("Releasing")
   send("D:")
   time.sleep(SERVOTICK) # sleep a bit
     
+
 def releaseChute():
   LOG.debug("Releasing Parachute")
   send("P:")
   time.sleep(SERVOTICK) # sleep a bit
     
+
 def sendRadio(rString):
   LOG.debug("Sending Radio Packet: %s" % rString)
   send("R:%s" % rString)
   
+
 def stop():
   SOCK.close()
   LOG.info("Closing Module")
+
+
+def requestData():
+  global LAST_DAT
+  while True:
+    dat = send("G:")
+    print "Recieved: %s" % dat
+    if dat and dat.startswith("T|"):
+      LAST_DAT = dat
+      print "Received"
+      break
+    else:
+      time.sleep(0.5)
+
+
+def getGPS():
+  requestData()

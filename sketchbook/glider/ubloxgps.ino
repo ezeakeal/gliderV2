@@ -5,7 +5,7 @@ unsigned long start;
 #define SWSER_TX 12
 #define SWSER_RX 13
 SoftwareSerial gpsSerial(SWSER_TX, SWSER_RX);
-byte GPSBuffer[82];
+char GPSBuffer[82];
 byte GPSIndex=0;
 
 void gpsSetup()
@@ -292,6 +292,8 @@ bool readGPS()
   }
 }
 
-byte *getGPS(){
+char* getGPS(){
   return GPSBuffer;
 }
+
+

@@ -94,6 +94,7 @@ def getBatteryStatus():
 def getLocation():
   global LOCATION
   location = {}
+  l = arduinoController.getGPS()
   # event = DROID.eventWaitFor('location',10)
   # Get a location or get lastKNown
   # loc = DROID.readLocation().result

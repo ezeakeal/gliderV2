@@ -6,6 +6,7 @@
 #define GPSENABLE 2
 #define LED 8
 #define LED_O 7
+#define PIN_TELEM 7
 // Pins-Servos
 #define LEFT_SERVO 3
 #define RIGHT_SERVO 5
@@ -26,10 +27,11 @@ Servo gimbalVServo;
 
 // Other constants
 const unsigned int MAX_INPUT = 165;
-static unsigned int input_pos = 0;
+unsigned int input_pos = 0;
+unsigned int telemIndex = 0;
 
 void setup() {
-  Serial.begin(57600);
+  Serial.begin(19200);
   // Setup the GPS
   ledblink();
   ledblink();
@@ -61,6 +63,7 @@ void setup() {
   // Setup GPS
   ledblink();
   gpsSetup();
+  Serial.flush();
 }
 
 void loop() {
@@ -71,7 +74,6 @@ void readSerial() {
   static char input_line[MAX_INPUT];
 
   if (Serial.available()) {
-    Serial.print("data: ");
     while (Serial.available() > 0) {
       char inByte = Serial.read();
       digitalWrite(LED, HIGH);
@@ -169,21 +171,11 @@ void processData(char * data) {
   }
 
   if(strstr(data, "G:")) {
-    writeGPS();
-    Serial.write(90);
-  }
-
-}
-
-void writeGPS(){
-  if (readGPS()){
-    byte *gpsBuffer = getGPS();
-    for (byte i = 0, j = 0; i < 82; i++) {
-      Serial.write(gpsBuffer[i]);
-      digitalWrite(LED, HIGH);
-      delay(10);
-      digitalWrite(LED, LOW);
-    }
+    digitalWrite(LED, HIGH);
+    // Construct and send telemetry
+    char* telStr = constructTelemetry();
+    sendStr(telStr);
+    digitalWrite(LED, LOW);
   }
 }
 
@@ -212,5 +204,26 @@ void ledblink(){
   delay(200);
 }
 
+char* constructTelemetry(){
+  int p = 100; // readPressure();
+  int r = 100; // readThermister();
+  int t = 100; // readTemperature_LM35();
+  char* gpsBuffer = 0;
+  if (readGPS()){
+    gpsBuffer = getGPS();
+    gpsBuffer[ strlen(gpsBuffer) - 1 ] = '\0';
+  }  
+  char buf[350];
+  snprintf(buf, sizeof buf, "T|%05d|%ld|%s|%010d|%010d|%010d|", telemIndex, millis(), gpsBuffer, p, r, t);
+  int size = strlen(buf);
+  sprintf(buf, "%s%d", buf, size);
+  return buf;
+}
 
-
+void sendStr(String msg){
+  digitalWrite(PIN_TELEM, LOW);
+  Serial.println(msg);
+  Serial.flush();
+  digitalWrite(PIN_TELEM, HIGH);
+  telemIndex++;
+}
