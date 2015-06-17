@@ -1,15 +1,15 @@
-
 boolean gpsStatus[] = {false, false, false, false, false, false, false};
 unsigned long start;
 
-#define SWSER_TX 12
-#define SWSER_RX 13
+#define SWSER_TX 7
+#define SWSER_RX 8
 SoftwareSerial gpsSerial(SWSER_TX, SWSER_RX);
 char GPSBuffer[82];
 byte GPSIndex=0;
 
-void gpsSetup()
+void setup_GPS()
 {
+  ledblink();
   gpsSerial.begin(9600); 
   // START OUR SERIAL DEBUG PORT
   //
@@ -40,7 +40,7 @@ void gpsSetup()
   //OFF = 0x00
   //ON  = 0x01
   //
-  byte settingsArray[] = {0x06, 0xE8, 0x03, 0x00, 0xE1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; //
+  byte settingsArray[] = {0x06, 0xF4, 0x01, 0x00, 0xE1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; //
   configureUblox(settingsArray); 
 } 
 
@@ -295,5 +295,6 @@ bool readGPS()
 char* getGPS(){
   return GPSBuffer;
 }
+
 
 
