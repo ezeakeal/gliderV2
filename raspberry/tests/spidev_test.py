@@ -15,6 +15,8 @@ spi_dev = 0
 spi = None
 char_respond = "-" # this character is reqquired in the arduino code for a response
 
+wing_angle = 0
+
 def RW_glider_command(command):
     W_glider_command(command)
     time.sleep(delay_respond)
@@ -56,10 +58,11 @@ def hex_str(dec_str):
 
 
 def doServoLoop():
-    wingAngle = int(round(time.time() * 1000)) % 90
-    W_glider_command("W:%s:80" % wingAngle)
-    W_glider_command("D:80:20")
-    RW_glider_command("G:")
+    global wing_angle
+    wing_angle += 2
+    W_glider_command("W:%s:80" % (wing_angle % 90))
+    # W_glider_command("D:80:20")
+    # RW_glider_command("G:")
 
 
 def reset_spi():
@@ -72,13 +75,11 @@ def reset_spi():
     spi.max_speed_hz = 40000 # fuckit.. keep it that low.
 
 
-
-reset_spi()
-
-while True:
-    doServoLoop()
-
-spi.close()
-    
+if __name__ == '__main__':
+    reset_spi()
+    while True:
+        doServoLoop()
+    spi.close()
+        
 # res = RW_glider_command("testing")
 # print "Response: %s" % res

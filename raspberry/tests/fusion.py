@@ -6,8 +6,8 @@ import os.path
 import time
 import math
 
-SETTINGS_FILE = "RTIMULib"
 
+SETTINGS_FILE = "RTIMULib"
 print("Using settings file " + SETTINGS_FILE + ".ini")
 if not os.path.exists(SETTINGS_FILE + ".ini"):
   print("Settings file does not exist, will be created")
@@ -31,12 +31,10 @@ imu.setAccelEnable(True)
 imu.setCompassEnable(True)
 
 poll_interval = imu.IMUGetPollInterval()
-print("Recommended Poll Interval: %dmS\n" % poll_interval)
 
+print("Recommended Poll Interval: %dmS\n" % poll_interval)
 while True:
   if imu.IMURead():
-    # x, y, z = imu.getFusionData()
-    # print("%f %f %f" % (x,y,z))
     data = imu.getIMUData()
     fusionPose = data["fusionPose"]
     print("r: %f p: %f y: %f" % (math.degrees(fusionPose[0]), 
