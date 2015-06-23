@@ -41,7 +41,6 @@ void setup() {
   // Setup Servos
   ledblink();
   hook_servos();
-  demo_servo_loop();
   
   // Setup SPI
   setup_SPI();

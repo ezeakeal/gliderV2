@@ -1,33 +1,34 @@
-
+#include <Servo.h>
 #include <SoftwareSerial.h>
-#define GPSENABLE 2
-SoftwareSerial mySerial(12, 13);
-int val = 0;
-int led = 9;           // the pin that the LED is attached to
-int brightness = 0;    // how bright the LED is
-int fadeAmount = 5;    // how many points to fade the LED by
 
+#define SWSER_TX 7
+#define SWSER_RX 8
+SoftwareSerial gpsSerial(SWSER_TX, SWSER_RX);
+
+Servo leftServo;
+Servo rightServo;
+Servo parachuteServo;
+Servo detachServo;
+
+int i;
 // the setup routine runs once when you press reset:
 void setup() {
-  Serial.begin(57600);
-  pinMode(led, OUTPUT);
-  pinMode(GPSENABLE, OUTPUT);
-  digitalWrite(GPSENABLE, HIGH);
-  //  gpsSetup();
+  gpsSerial.begin(9600); 
+  rightServo.attach(6);  // attaches the servo on pin 9 to the servo object
+  leftServo.attach(9);  // attaches the servo on pin 9 to the servo object
+  detachServo.attach(5);
+  parachuteServo.attach(3);
+  i = 0;
 }
 
 // the loop routine runs over and over again forever:
 void loop() {
-  val = Serial.read(); 
-  if (val > '0' && val <= '9' ) {
-    val = val - '0';          // convert from character to number
-    for(int i=0; i<val; i++) {
-      digitalWrite(led,HIGH);
-      delay(150);
-      digitalWrite(led, LOW);
-      delay(150);
-    }
-    delay(1000);
-  }
+  i++;
+  i = i % 90;
+    leftServo.write(i);
+    rightServo.write(i);
+    parachuteServo.write(i);
+    detachServo.write(i);
+    delay(20);
 }
 

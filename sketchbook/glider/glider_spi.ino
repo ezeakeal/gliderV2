@@ -28,7 +28,6 @@ void setup_SPI()
 void ss_falling ()
 {
   clearSPIBuffer();
-  Serial.println("Cleared");
 }  // end of interrupt service routine (ISR) ss_falling
 
 

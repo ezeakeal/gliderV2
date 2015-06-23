@@ -2,9 +2,9 @@ char command_buff [10];
 
 // Servos
 #define LEFT_SERVO 9
-#define RIGHT_SERVO 5
+#define RIGHT_SERVO 6
 #define PARACHUTE_SERVO 3
-#define DETACH_SERVO 6
+#define DETACH_SERVO 5
 
 void hook_servos()
 {
@@ -28,7 +28,6 @@ void processData(char * data, int len) {
   
   // Go figure out what to do
   if(strstr(data, "W:")) {
-    Serial.println("Angle");
     char *str;
     char *p = data;
     int count = 0;
@@ -46,20 +45,10 @@ void processData(char * data, int len) {
         count = count + 1;
       }
     }
-    Serial.print("Left: ");
-    Serial.println(left);
     leftServo.write(left);
     rightServo.write(right);
-  }
-
-  if(strstr(data, "R:")) {   
-    char *str;
-    char *p = data;
-    while ((str = strtok_r(p, ":", &p)) != NULL) {
-      if (!strstr(str, "R")) {
-
-      }
-    }
+    parachuteServo.write(right);
+    detachServo.write(right);
   }
   
   if(strstr(data, "D:")) {
@@ -94,16 +83,4 @@ void initServoPos(){
   parachuteServo.write(0);
 }
 
-void demo_servo_loop(){
-  int ind = 0;
-  while (ind < 9){
-    leftServo.write(ind*10);
-    rightServo.write(ind*10);
-    detachServo.write(ind*10);
-    parachuteServo.write(ind*10);
-    ind++;
-    delay(500);
-  }
-  delay(1000);
-}
 

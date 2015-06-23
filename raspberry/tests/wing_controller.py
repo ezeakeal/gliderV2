@@ -163,3 +163,5 @@ if __name__ == '__main__':
 
     orientThread.start()
     servoThread.start()
+    while True:
+        time.sleep(1) # Keep this thread active
