@@ -11,25 +11,14 @@ static char input_line[MAX_INPUT];
 
 void setup_SPI()
 {
-  ledblink();
-  
+  SPI.usingInterrupt(2);
   // have to send on master in, *slave out*
   pinMode(MISO, OUTPUT);  
   // turn on SPI in slave mode
   SPCR |= _BV(SPE);
   // turn on interrupts
   SPCR |= _BV(SPIE);
-  
-  attachInterrupt (0, ss_falling, FALLING);
-  
 }
-
-// start of transaction, no command yet
-void ss_falling ()
-{
-  clearSPIBuffer();
-}  // end of interrupt service routine (ISR) ss_falling
-
 
 // SPI interrupt routine
 ISR (SPI_STC_vect)
@@ -74,19 +63,11 @@ void clearSPIBuffer(){
 }
 
 void processSPIBuffer(int index){
-  Serial.print("Handling: ");
-  Serial.println(input_line);
-  processData(input_line, index);
+  // Copy the command for later processing..
+  strncpy(command_buff, input_line, index);
+  command_buff[15] = '\0';
+  Serial.print("Command: ");
+  Serial.println(command_buff);
+  commandReady = true;
 }
 
-void setSPIResponse(char* response){
-  int size = strlen(response);
-  Serial.print("Setting telemetry ");
-  Serial.print(size);
-  Serial.println(" chars");
-  strncpy(output_line, response, size);
-  output_line[size+1] = '\0';
-  Serial.print("Output: ");
-  Serial.println(output_line);
-  output_pos = 0;
-}

@@ -10,7 +10,6 @@ byte GPSIndex=0;
 void setup_GPS()
 {
   ledblink();
-  gpsSerial.begin(9600); 
   // START OUR SERIAL DEBUG PORT
   //
   //Settings Array contains the following settings: [0]NavMode, [1]DataRate1, [2]DataRate2, [3]PortRateByte1, [4]PortRateByte2, [5]PortRateByte3, 

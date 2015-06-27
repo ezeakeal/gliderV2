@@ -1,18 +1,27 @@
-# https://learn.sparkfun.com/tutorials/programming-the-pcduino/spi-communications
+import time
+import logging
+import datetime
 
 import spidev
-import time
 
-###########################
-# Globals
-###########################
+##########################################
+# TODO
+##########################################
+
+##########################################
+# GLOBALS
+##########################################
 delay_reset = 0.1
 delay_xfer = 0.05
 spi_bus = 0
 spi_dev = 0
 spi = None
 wing_angle = 0
+max_speed = 40000 # fuckit.. keep it that low.
 
+##########################################
+# FUNCTIONS
+##########################################
 def W_glider_command(command):
     comm_string = "$%s;" % command
     char_arr = [ord(i) for i in comm_string]
@@ -43,12 +52,6 @@ def hex_str(dec_str):
     return ''.join(["0x%02X " % x for x in dec_str]).strip()
 
 
-def doServoLoop():
-    global wing_angle
-    wing_angle += 2
-    W_glider_command("W:%s:%s" % (wing_angle % 90, (wing_angle + 45) % 90))
-
-
 def reset_spi():
     global spi
     if not spi:
@@ -56,12 +59,4 @@ def reset_spi():
     spi.close()
     time.sleep(1)
     spi.open(spi_bus, spi_dev)
-    spi.max_speed_hz = 40000 # fuckit.. keep it that low.
-
-
-if __name__ == '__main__':
-    reset_spi()
-    while True:
-        doServoLoop()
-    spi.close()
-        
+    spi.max_speed_hz = max_speed
