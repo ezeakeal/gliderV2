@@ -11,6 +11,8 @@ LOG = logging.getLogger()
 # GUIDE
 # http://ava.upuaut.net/?p=768
 
+
+
 GPSDAT = {
     'strType': None,
     'fixTime': None,

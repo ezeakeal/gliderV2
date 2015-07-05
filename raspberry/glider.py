@@ -10,7 +10,7 @@ import importlib
 # Glider Imports
 import glider_lib
 import glider_schedule as schedule
-from glider_states import healthCheck, ascent, release, glide, parachute, recovery
+from glider_states import healthCheck, ascent, release, glide, parachute, recovery, errorState
 
 ##########################################
 # TODO
@@ -19,8 +19,7 @@ from glider_states import healthCheck, ascent, release, glide, parachute, recove
 ##########################################
 # GLOBALS
 ##########################################
-LOGLEVEL          = logging.WARN
-LOG               = None
+LOG               = glider_lib.setup_custom_logger("glider", loglevel=logging.DEBUG)
 RUNNING           = True
 DESIRED_PITCH     = 0.05
 RELEASED          = False
@@ -30,29 +29,19 @@ GLIDE_INTERVAL    = 0.05
 PERSIST_DATA = {}
 
 STATE_MACHINE = {
-    "HEALTH_CHECK"  : healthCheck,
-    "ASCENT"        : ascent,                   
-    "RELEASE"       : release,                
-    "FLIGHT"        : glide,                    
-    "PARACHUTE"     : parachute,
-    "RECOVER"       : recovery
+    "HEALTH_CHECK"  : healthCheck(),
+    "ASCENT"        : ascent(),                   
+    "RELEASE"       : release(),                
+    "FLIGHT"        : glide(),                    
+    "PARACHUTE"     : parachute(),
+    "RECOVER"       : recovery(),
+    "ERROR"         : errorState()
 }
 CURRENT_STATE = "HEALTH_CHECK"
 
 ##########################################
 # FUNCTIONS - UTIL
 ##########################################
-def setup_custom_logger(name=None):
-    logger = logging.getLogger(name)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    handler.setFormatter(formatter)
-    logger.setLevel(LOGLEVEL)
-    logger.addHandler(handler)
-    return logger
-
-
 def signal_handler(signal, frame):
     global RUNNING
     RUNNING = False
@@ -63,11 +52,13 @@ def signal_handler(signal, frame):
 ##########################################      
 def startUp():
     glider_lib.speak("Starting up")
+    glider_lib.startUp()
     signal.signal(signal.SIGINT, signal_handler)
 
 
 def shutDown():
     glider_lib.speak("Shutting down")
+    glider_lib.shutDown()
 
 
 def glide():
@@ -75,22 +66,21 @@ def glide():
     glider_lib.speak("Initialized")
     while RUNNING:
         try:
+            LOG.debug("Current state: %s" % CURRENT_STATE)
             stateClass = STATE_MACHINE[CURRENT_STATE]
-            
-            eResponse = stateClass.execute()
+            stateClass.rest()
+            stateClass.execute()
             newState = stateClass.switch()
             if newState:
                 LOG.debug("State is being updated from (%s) to (%s)" % (
                     CURRENT_STATE, newState))
                 CURRENT_STATE = newState
-            time.sleep(GLIDE_INTERVAL)
         except:
             LOG.error(traceback.print_exc())
-            states.setState("RECOVER")
+            CURRENT_STATE = "ERROR"
 
 
 if __name__ == '__main__':
-    LOG = setup_custom_logger("drone")
     startUp()
     glide()
     shutDown()

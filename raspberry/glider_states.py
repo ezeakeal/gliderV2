@@ -1,3 +1,4 @@
+import time
 import logging
 
 # Glider Imports
@@ -5,12 +6,12 @@ import glider_lib
 import glider_schedule as schedule
 import glider_states as states
 
-
+from glider_gps import GPS_I2C
 ##########################################
 # GLOBALS
 ##########################################
-LOGLEVEL          = logging.WARN
-LOG               = logging.getLogger('state')
+LOG               = glider_lib.setup_custom_logger("state", loglevel=logging.DEBUG)
+GPS               = GPS_I2C()
 
 ##########################################
 # FUNCTIONS - UTIL
@@ -40,17 +41,31 @@ def runStateMachine():
 ##########################################
 # CLASSES - BASE
 ##########################################
-class gliderState():
+class gliderState(object):
     """
     This is a base class which enforces an execute
     and switch method
     """
+    def __init__(self):
+        self.readyToSwitch = False
+        self.nextState = None
+        self.exitState = ""
+        self.sleepTime = 1
+
+    def rest(self):
+        time.sleep(self.sleepTime)
 
     def execute(self):
         raise NotImplementedError("Execute function is required")
 
     def switch(self):
-        raise NotImplementedError("Switch function is required")
+        LOG.info("Next state: %s" % self.nextState)
+        assert(self.nextState is not None)
+        if self.readyToSwitch:
+            glider_lib.speak("Switching state to %s" % self.nextState)
+            return self.nextState
+        else:
+            return None
 
 ##########################################
 # CLASSES - STATE
@@ -59,25 +74,28 @@ class gliderState():
 #         Health Check
 #-----------------------------------
 class healthCheck(gliderState):
+    def __init__(self):
+        super(healthCheck, self).__init__()
+        self.nextState = "ASCENT"
+
     def execute(self):
-        time.sleep(5)
-        
-    def switch(self):
+        # Get the location data, figure if locked
         location = glider_lib.getLocation()
-        orientation = glider_lib.getOrientation()
-        battStatus = glider_lib.getBatteryStatus()
-        if (location['provider'] != 'gps'):
-            LOG.error("Network Provider not sufficient: %s" % location['provider'])  
-            return False
-        if (battStatus['level'] < 85):
-            LOG.error("Battery too low: %s" % battStatus['level'])  
-            return False
-        LOG.info("Health Check Passed")
-        glider_lib.speak("Health Check Complete")
-        glider_lib.sendTextData("Health Good")
-        glider_lib.speak("Beginning Ascent")
-        return "ASCENT"
-        
+        locationLocked = (location.get("fixQual") != 0 and location.get("horDil") < 5)
+        # Get battery data. Figure if healthy
+        batteryStatus = glider_lib.getBatteryStatus()
+        batteryHealthy = batteryStatus.get("health")
+        if not locationLocked:
+            LOG.error("Location is not locked yet")
+        elif not batteryHealthy:
+            LOG.error("Battery not healthy")
+        else:
+            # Seems all is good
+            LOG.info("Health Check Passed")
+            glider_lib.speak("Health Check Complete")
+            glider_lib.sendMessage("Health Good")
+            self.readyToSwitch = True
+ 
 #-----------------------------------
 #         Ascent
 #-----------------------------------
@@ -197,3 +215,17 @@ class recovery(gliderState):
         else:
             CURRENT_STATE = "RELEASE"
 
+
+#-----------------------------------
+#         EMERGENCY
+#-----------------------------------
+class errorState(gliderState):
+    def execute(self):
+        # Send data over radio.
+        # Tell people there is something wrong
+        # Send location, orientation
+        # Send states of parachute/release motor
+        # Send battery level
+        # LOOK FOR A RESPONSE!
+        # We need to set the state it should go in to..
+        pass
