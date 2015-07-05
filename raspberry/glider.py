@@ -5,10 +5,12 @@ import types
 import signal
 import logging
 import traceback
+import importlib
 
-# Orbit Imports
+# Glider Imports
 import glider_lib
 import glider_schedule as schedule
+from glider_states import healthCheck, ascent, release, glide, parachute, recovery
 
 ##########################################
 # TODO
@@ -26,6 +28,17 @@ PARACHUTE_HEIGHT  = 1000
 GLIDE_INTERVAL    = 0.05
 
 PERSIST_DATA = {}
+
+STATE_MACHINE = {
+    "HEALTH_CHECK"  : healthCheck,
+    "ASCENT"        : ascent,                   
+    "RELEASE"       : release,                
+    "FLIGHT"        : glide,                    
+    "PARACHUTE"     : parachute,
+    "RECOVER"       : recovery
+}
+CURRENT_STATE = "HEALTH_CHECK"
+
 ##########################################
 # FUNCTIONS - UTIL
 ##########################################
@@ -39,6 +52,7 @@ def setup_custom_logger(name=None):
     logger.addHandler(handler)
     return logger
 
+
 def signal_handler(signal, frame):
     global RUNNING
     RUNNING = False
@@ -51,27 +65,28 @@ def startUp():
     glider_lib.speak("Starting up")
     signal.signal(signal.SIGINT, signal_handler)
 
+
 def shutDown():
     glider_lib.speak("Shutting down")
 
 
 def glide():
+    global CURRENT_STATE
     glider_lib.speak("Initialized")
     while RUNNING:
         try:
-            LOG.debug("Current State: %s" % CURRENT_STATE)
-            # Determine state data and
-            #   execution function, switch function
-            stateData = STATE_ORDER[CURRENT_STATE]
-            funcExec = getattr(self, stateData['execute'])
-            funcSwitch = getattr(self, stateData['switch'])
+            stateClass = STATE_MACHINE[CURRENT_STATE]
             
-            eResponse = funcExec()
-            sResponse = funcSwitch()
+            eResponse = stateClass.execute()
+            newState = stateClass.switch()
+            if newState:
+                LOG.debug("State is being updated from (%s) to (%s)" % (
+                    CURRENT_STATE, newState))
+                CURRENT_STATE = newState
             time.sleep(GLIDE_INTERVAL)
         except:
             LOG.error(traceback.print_exc())
-            glider_states.setState("RECOVER")
+            states.setState("RECOVER")
 
 
 if __name__ == '__main__':

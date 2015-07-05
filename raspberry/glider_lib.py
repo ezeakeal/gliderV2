@@ -6,8 +6,10 @@ import logging
 from math import *
 
 import glider_ATMegaController as controller
-import RPi.GPIO as GPIO  
-
+try:
+    import RPi.GPIO as GPIO  
+except:
+    print "RPi.GPIO can't be imported"
 # http://raspi.tv/2013/automatic-exposure-compensation-testing-for-the-pi-camera
 # http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 
@@ -21,8 +23,9 @@ LOG         = logging.getLogger('glider_lib')
 # FUNCTIONS - UTILITY
 ##########################################
 def startUp():
-    GPIO.setmode(GPIO.BOARD)  
-    GPIO.setup(LED_RUNNING, GPIO.OUT)
+    if (GPIO):
+        GPIO.setmode(GPIO.BOARD)  
+        GPIO.setup(LED_RUNNING, GPIO.OUT)
 
 def alert(msg):
     text = str(msg)

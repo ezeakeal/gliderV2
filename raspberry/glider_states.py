@@ -1,18 +1,16 @@
+import logging
+
+# Glider Imports
+import glider_lib
+import glider_schedule as schedule
+import glider_states as states
+
+
 ##########################################
 # GLOBALS
 ##########################################
 LOGLEVEL          = logging.WARN
 LOG               = logging.getLogger('state')
-
-STATE_ORDER = {
-    "HEALTH_CHECK"  : {"execute":"execute_health_check", "switch":"switch_health_check"},
-    "ASCENT"        : {"execute":"execute_ascent", "switch":"switch_ascent"},                   
-    "RELEASE"       : {"execute":"execute_release", "switch":"switch_release"},                
-    "FLIGHT"        : {"execute":"execute_flight", "switch":"switch_flight"},                    
-    "PARACHUTE"     : {"execute":"execute_parachute", "switch":"switch_parachute"},
-    "RECOVER"       : {"execute":"execute_recovery", "switch":"switch_recovery"}
-}
-CURRENT_STATE = "FLIGHT"
 
 ##########################################
 # FUNCTIONS - UTIL
@@ -20,7 +18,24 @@ CURRENT_STATE = "FLIGHT"
 def setState(newState):
     """Sets the global state which is used for various updates"""
     global STATE
-    STATE = newState
+    if getattr(states, newState):
+        STATE = newState
+    else:
+        raise Exception("State (%s) does not exist" % newState)
+
+
+def scheduleRelease():
+    global CURRENT_STATE
+    CURRENT_STATE = "release"
+
+
+def runStateMachine():
+    currentStateName = states.CURRENT_STATE
+    stateClass = states.STATE_ORDER[currentStateName]
+    stateClass = getattr(states, "healthCheck")
+    
+    eResponse = stateClass.execute()
+    sResponse = stateClass.switch()
 
 ##########################################
 # CLASSES - BASE
@@ -40,43 +55,48 @@ class gliderState():
 ##########################################
 # CLASSES - STATE
 ##########################################
-def scheduleRelease():
-    global CURRENT_STATE
-    CURRENT_STATE = "RELEASE"
-
 #-----------------------------------
 #         Health Check
 #-----------------------------------
 class healthCheck(gliderState):
-    def execute():
+    def execute(self):
         time.sleep(5)
         
-    def switch():
-        global CURRENT_STATE
+    def switch(self):
         location = glider_lib.getLocation()
         orientation = glider_lib.getOrientation()
         battStatus = glider_lib.getBatteryStatus()
         if (location['provider'] != 'gps'):
             LOG.error("Network Provider not sufficient: %s" % location['provider'])  
-            return
+            return False
         if (battStatus['level'] < 85):
             LOG.error("Battery too low: %s" % battStatus['level'])  
-            return
+            return False
         LOG.info("Health Check Passed")
         glider_lib.speak("Health Check Complete")
         glider_lib.sendTextData("Health Good")
         glider_lib.speak("Beginning Ascent")
-        CURRENT_STATE = "ASCENT"
+        return "ASCENT"
         
 #-----------------------------------
 #         Ascent
 #-----------------------------------
 class ascent(gliderState):
-    def execute():
+    def __init__(self):
+        self.ascent_nodes = []
+        # target release countdown is int.
+        # Recalc at every node update 
+        ## node updates at >500m intervals only
+        ## below 20km
+        # Median used to update release time
+        # If time has passed (dont countdown, check time.time() against a future time)
+        # Then switch
+
+    def execute(self):
         LOG.info("ASCENDING!")
         time.sleep(60)
 
-    def switch():
+    def switch(self):
         global CURRENT_STATE
         location  = glider_lib.getLocation()
         if location['altitude'] > 15000 and PERSIST_DATA.get('15000') == None:
@@ -93,7 +113,7 @@ class ascent(gliderState):
 #         Release
 #-----------------------------------
 class release(gliderState):
-    def execute():
+    def execute(self):
         global RELEASED
         LOG.info("RELEASING!")
         glider_lib.speak("Releasing in")
@@ -104,7 +124,7 @@ class release(gliderState):
         glider_lib.releaseChord()
         RELEASED = True
 
-    def switch():
+    def switch(self):
         global CURRENT_STATE
         glider_lib.speak("Performing Flight")
         CURRENT_STATE = "FLIGHT"
@@ -113,7 +133,7 @@ class release(gliderState):
 #         Guided Flight
 #-----------------------------------
 class glide(gliderState):
-    def execute():
+    def execute(self):
         desired_heading = glider_lib.getDesiredHeading()
         LOG.debug("Nav Heading: %s " % desired_heading)
         orientation = glider_lib.getOrientation()
@@ -132,7 +152,7 @@ class glide(gliderState):
         deltaPitch = DESIRED_PITCH - orientation['pitch']
         glider_lib.wing_turnDelta(deltaRoll, deltaPitch)
         
-    def switch():
+    def switch(self):
         global CURRENT_STATE
         location = glider_lib.getLocation()
         if location['altitude'] < PARACHUTE_HEIGHT:
@@ -142,14 +162,14 @@ class glide(gliderState):
 #         PARACHUTE
 #-----------------------------------
 class parachute(gliderState):
-    def execute():
+    def execute(self):
         glider_lib.speak("Releasing parachute!")
         location = glider_lib.getLocation()
         orientation = glider_lib.getOrientation()
         glider_lib.broadcastLocation()
         glider_lib.releaseParachute()
 
-    def switch():
+    def switch(self):
         global CURRENT_STATE
         LOG.info("Attempting Recovery")
         if RELEASED:
@@ -162,17 +182,18 @@ class parachute(gliderState):
 #         EMERGENCY
 #-----------------------------------
 class recovery(gliderState):
-    def execute():
+    def execute(self):
         glider_lib.speak("Recovery!")
         LOG.critical("Attempting Recovery")
         location = glider_lib.getLocation()
         orientation = glider_lib.getOrientation()
         glider_lib.broadcastLocation()
 
-    def switch():
+    def switch(self):
         global CURRENT_STATE
         LOG.info("Attempting Recovery")
         if RELEASED:
             CURRENT_STATE = "PARACHUTE"
         else:
             CURRENT_STATE = "RELEASE"
+
