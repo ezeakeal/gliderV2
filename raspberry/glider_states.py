@@ -1,4 +1,6 @@
+import os
 import time
+import numpy
 import logging
 
 # Glider Imports
@@ -101,51 +103,91 @@ class healthCheck(gliderState):
 #-----------------------------------
 class ascent(gliderState):
     def __init__(self):
+        super(ascent, self).__init__()
         self.ascent_nodes = []
-        # target release countdown is int.
-        # Recalc at every node update 
-        ## node updates at >500m intervals only
-        ## below 20km
-        # Median used to update release time
-        # If time has passed (dont countdown, check time.time() against a future time)
-        # Then switch
+        self.ascent_rates = []
+        self.median_ascent_rate = 0
+        self.sleepTime = 30
+        self.minAltDelta = 500
+        self.minRateCount = 10
+        self.desiredAltitude = 22000
+        self.releaseTime = None
+        self.nextState = "RELEASE"
 
     def execute(self):
         LOG.info("ASCENDING!")
-        time.sleep(60)
+        lastNode = None
+        if len(self.ascent_nodes) > 0:
+            lastNode = self.ascent_nodes[-1]
+        if not lastNode:
+            return
+        
+        # Ok, we have a lastNode now so we can do some work
+        location  = glider_lib.getLocation()
+        currentAlt = location['altitude']
+        lastNodeAlt = lastNode['altitude']
+        if (lastNodeAlt - currentAlt) < self.minAltDelta:
+            return
+        
+        # Alright, we are sufficiently far from the last node for this to be a decent measurement
+        timeSeconds = time.time()
+        newNode = {
+            'altitude': location['altitude'],
+            'time': timeSeconds
+        }
+        # Append that node
+        self.ascent_nodes.append(newNode)
+        # Ensure there are enough nodes to get a decent calculation from
+        if len(self.ascent_nodes) < 2:
+            return
+        
+        # We have 2 nodes, lets rock with our first ascent rate
+        deltaAlt = newNode['altitude'] - lastNode['altitude']
+        deltaSec = newNode['time'] - lastNode['time']
+        newRate = deltaAlt / deltaSec
+        # Append the rate of ascent
+        self.ascent_rates.append(newRate)
+        if len(self.ascent_rates) < self.minRateCount:
+            LOG.debug("Not enough ascent rates have been recorded: %s" % self.ascent_rates)
+            return
+
+        self.median_ascent_rate = numpy.median(numpy.array(self.ascent_rates))
+        LOG.debug("Calculated ascent rate at: %s" % self.median_ascent_rate)
+        remainingAltitude = self.desiredAltitude - location['altitude']
+        remainingSeconds = remainingAltitude / self.median_ascent_rate
+        glider_lib.sendMessage("Alt (%s) Rate (%s) SecRemain(%s)" % (
+            location['altitude'], newRate, remainingSeconds))
 
     def switch(self):
-        global CURRENT_STATE
-        location  = glider_lib.getLocation()
-        if location['altitude'] > 15000 and PERSIST_DATA.get('15000') == None:
-            PERSIST_DATA['15000'] = time.time()
-        if location['altitude'] > 17000 and PERSIST_DATA.get('17000') == None:
-            PERSIST_DATA['17000'] = time.time()
-        if PERSIST_DATA.get('17000') and PERSIST_DATA.get('15000'):
-            diff = int(PERSIST_DATA['17000'] - PERSIST_DATA['15000'])
-            schedule.enableFunc("scheduleRelease", scheduleRelease, diff)
-        if STATE['ascent_complete']:
-            LOG.info("Ascent Complete")
+        if not self.releaseTime:
+            return
+        # Figure out if we have passed that time
+        currentTime = time.time()
+        if currentTime > self.releaseTime:
+            self.readyToSwitch = True 
+        super(switch, self).switch()
         
 #-----------------------------------
 #         Release
 #-----------------------------------
 class release(gliderState):
+    def __init__(self):
+        super(release, self).__init__()
+        self.nextState = "FLIGHT"
+        self.mp3Play = "mpg321"
+        self.releaseMP3 = "release_song.mp3" # Make this full path
+        self.releaseDelay = 143
+
     def execute(self):
-        global RELEASED
-        LOG.info("RELEASING!")
-        glider_lib.speak("Releasing in")
-        time.sleep(3)
-        for t in [5,4,3,2,1]:
-            glider_lib.speak(t)
-            time.sleep(1)
+        LOG.info("Playing song")
+        subprocess.Popen([self.mp3Play, self.releaseMP3])
+        time.sleep(self.releaseDelay)
+        LOG.info("Releasing cable")
         glider_lib.releaseChord()
-        RELEASED = True
 
     def switch(self):
-        global CURRENT_STATE
-        glider_lib.speak("Performing Flight")
-        CURRENT_STATE = "FLIGHT"
+        self.readyToSwitch = True
+        super(release, self).switch()
     
 #-----------------------------------
 #         Guided Flight
@@ -175,6 +217,7 @@ class glide(gliderState):
         location = glider_lib.getLocation()
         if location['altitude'] < PARACHUTE_HEIGHT:
             CURRENT_STATE = "PARACHUTE"
+        super(glide, self).switch()
 
 #-----------------------------------
 #         PARACHUTE
