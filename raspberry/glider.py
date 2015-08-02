@@ -19,7 +19,10 @@ from glider_states import healthCheck, ascent, release, glide, parachute, recove
 ##########################################
 # GLOBALS
 ##########################################
-LOG               = glider_lib.setup_custom_logger("glider", loglevel=logging.DEBUG)
+LOG         = logging.getLogger()
+LOG.setLevel(logging.WARN)
+LOG.addHandler(logging.StreamHandler(sys.stdout))
+
 RUNNING           = True
 DESIRED_PITCH     = 0.05
 RELEASED          = False
@@ -37,7 +40,7 @@ STATE_MACHINE = {
     "RECOVER"       : recovery(),
     "ERROR"         : errorState()
 }
-CURRENT_STATE = "HEALTH_CHECK"
+CURRENT_STATE = "FLIGHT"
 
 ##########################################
 # FUNCTIONS - UTIL

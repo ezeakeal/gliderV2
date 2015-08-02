@@ -24,6 +24,7 @@ max_speed = 40000 # fuckit.. keep it that low.
 ##########################################
 def W_glider_command(command):
     comm_string = "$%s;" % command
+    print "Sending %s" % comm_string
     char_arr = [ord(i) for i in comm_string]
     # print "Command = %s" % (comm_string)
     
@@ -40,10 +41,8 @@ def W_glider_command(command):
 
 def raw_xfer(bytestr):
     send_arr = bytestr + [0] # add blank byte to receive the last character sent in response 
-    print "Sending hex array: %s" % hex_str(send_arr)
     response = spi.xfer(send_arr)
     response = response[1:] # remove first char as it contains a copy of the blank from last command
-    print "Received hex array: %s" % hex_str(response)
     time.sleep(delay_xfer)
     return response
 

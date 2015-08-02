@@ -20,7 +20,6 @@ bool commandReady = false;
 
 
 void setup() {
-//  pinMode(GPSENABLE, OUTPUT);
   pinMode(SPI_SS, OUTPUT);
 
   Serial.begin(19200);

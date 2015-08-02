@@ -9,7 +9,8 @@ import threading
 #####################################
 STATE_DATA = {}
 FUNC_STACK = {}
-LOG = logging.getLogger("orbit")
+LOG         = logging.getLogger('scheduler')
+LOG.setLevel(logging.DEBUG)
 
 #####################################
 # FUNCTIONS

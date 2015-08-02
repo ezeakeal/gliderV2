@@ -8,13 +8,11 @@ import glider_lib
 import glider_schedule as schedule
 import glider_states as states
 
-from glider_gps import GPS_I2C
 ##########################################
 # GLOBALS
 ##########################################
-LOG               = glider_lib.setup_custom_logger("state", loglevel=logging.DEBUG)
-GPS               = GPS_I2C()
-
+LOG         = logging.getLogger('state_controller')
+LOG.setLevel(logging.DEBUG)
 ##########################################
 # FUNCTIONS - UTIL
 ##########################################
@@ -79,8 +77,11 @@ class healthCheck(gliderState):
     def __init__(self):
         super(healthCheck, self).__init__()
         self.nextState = "ASCENT"
+        self.checkedWings = False
 
     def execute(self):
+        if not self.checkedWings:
+            self.wingCheck()
         # Get the location data, figure if locked
         location = glider_lib.getLocation()
         locationLocked = (location.get("fixQual") != 0 and location.get("horDil") < 5)
@@ -97,7 +98,20 @@ class healthCheck(gliderState):
             glider_lib.speak("Health Check Complete")
             glider_lib.sendMessage("Health Good")
             self.readyToSwitch = True
- 
+    
+    def wingCheck(self):
+        # Move the wings to max range
+        glider_lib.center_wings()
+        time.sleep(.5)
+        glider_lib.min_wings()
+        time.sleep(.5)
+        glider_lib.center_wings()
+        time.sleep(.5)
+        glider_lib.max_wings()
+        time.sleep(.5)
+        glider_lib.center_wings()
+        self.checkedWings = True
+        
 #-----------------------------------
 #         Ascent
 #-----------------------------------
@@ -193,30 +207,28 @@ class release(gliderState):
 #         Guided Flight
 #-----------------------------------
 class glide(gliderState):
-    def execute(self):
-        desired_heading = glider_lib.getDesiredHeading()
-        LOG.debug("Nav Heading: %s " % desired_heading)
-        orientation = glider_lib.getOrientation()
-        LOG.debug("Current Heading: %s " % orientation['yaw'])
-        headingDelta = min(desired_heading - orientation['yaw'], orientation['yaw'] - desired_heading) # shouldn't be required, but may have non-cyclic manipulation of angles
-        
-        LOG.debug("Current Roll: %s" % orientation['roll'])
-        desired_roll = getDesiredRoll(headingDelta)
-        LOG.debug("Desired Roll: %s" % (desired_roll)) 
-        deltaRoll = desired_roll - orientation['roll'] # required change in current roll
-        LOG.debug("Delta Roll: %s" % (deltaRoll)) 
+    def __init__(self):
+        super(glide, self).__init__()
+        self.nextState = "PARACHUTE"
+        self.parachute_height = 1500
+        self.location = None
+        self.sleepTime = 0.05
 
-        LOG.debug("Current Pitch: %s" % orientation['pitch'])
-        LOG.debug("Desired Pitch: %s" % (DESIRED_PITCH)) 
-        LOG.warn("%s %s %s" % (desired_heading, orientation['yaw'], headingDelta)) 
-        deltaPitch = DESIRED_PITCH - orientation['pitch']
-        glider_lib.wing_turnDelta(deltaRoll, deltaPitch)
-        
+    def execute(self):
+        # Get our new location
+        self.location = glider_lib.getLocation()
+        LOG.debug("Current Location: %s" % self.location)
+        # Update the pilot
+        glider_lib.updatePilotLocation(self.location)
+        wingAngles = glider_lib.getPilotWingCommand()
+        LOG.debug("Wing angles received: %s" % wingAngles)
+        if wingAngles:
+            glider_lib.setWingAngle(wingAngles)
+
     def switch(self):
-        global CURRENT_STATE
-        location = glider_lib.getLocation()
-        if location['altitude'] < PARACHUTE_HEIGHT:
-            CURRENT_STATE = "PARACHUTE"
+        if (self.location and self.location['alt'] and 
+                    self.location['alt'] < self.parachute_height):
+            self.readyToSwitch = True
         super(glide, self).switch()
 
 #-----------------------------------

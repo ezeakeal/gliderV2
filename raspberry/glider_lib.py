@@ -1,6 +1,7 @@
 import sys
 import json
 import types
+import RTIMU
 import serial
 import logging
 import datetime, time
@@ -8,26 +9,46 @@ import datetime, time
 import glider_ATMegaController as controller
 from glider_gps import GPS_I2C
 from glider_radio import XbeeRadio
+from glider_pilot import Pilot
 
 import RPi.GPIO as GPIO  
 # http://raspi.tv/2013/automatic-exposure-compensation-testing-for-the-pi-camera
 # http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 
+LOG         = logging.getLogger('glider_lib')
+LOG.setLevel(logging.DEBUG)
+
+##############################################
+# ORIENTATION WAKE UP
+##############################################
+# For some reason, if I put this in a function
+# it doesn't initialise correctly.. well it does
+# but I can't read anything from it after!
+SETTINGS_FILE = "RTIMULib"
+s = RTIMU.Settings(SETTINGS_FILE)
+O_IMU = RTIMU.RTIMU(s)
+if (not O_IMU.IMUInit()):
+    sys.exit(1)
+else:
+    LOG.info("IMU Init Succeeded")
+
 ##########################################
 # GLOBALS
 ##########################################
-LOG         = None
 LED_RUNNING = 11
 STATE       = "OK"
 LAST_LOC    = {}
 GPS         = GPS_I2C(fakeData=True)
 RADIO       = XbeeRadio()
+PILOT       = Pilot(O_IMU, desired_pitch=0)
 
 ##########################################
 # FUNCTIONS - UTILITY
 ##########################################
 def startUp():
     LOG.info("Starting up")
+    # Reset the SPI interface for some reason..
+    controller.reset_spi()
     # Set up some flashy lights
     GPIO.setmode(GPIO.BOARD)  
     GPIO.setup(LED_RUNNING, GPIO.OUT)
@@ -35,11 +56,16 @@ def startUp():
     GPS.start()
     # Connect Serial
     RADIO.start()
+    # Start the Pilot
+    PILOT.start()
+
 
 
 def shutDown():
     LOG.info("Shutting down")
     GPS.stop()
+    RADIO.stop()
+    PILOT.stop()
 
 
 def alert(msg):
@@ -72,9 +98,8 @@ def getBatteryStatus():
 
 
 def getLocation():
-    global GPS
-    location = GPS.gps_data
-    return location
+    gpsData = GPS.getData()
+    return gpsData
 
 
 def sendTelem(msg=""):
@@ -90,14 +115,39 @@ def sendTelem(msg=""):
     except:
         pass
 
+
 def sendMessage(msg):
     pass
 
 
-def setWingAngle(leftAngle, rightAngle):
-    LOG.debug("Setting: %02d %02d" % (leftAngle, rightAngle))
-    controller.setWing(leftAngle, rightAngle)
+def updatePilotLocation(location):
+    PILOT.updateCurrentLocation(location)
 
+
+def getPilotWingCommand():
+    wingAngles = PILOT.get_servo_angles()
+    return wingAngles
+
+
+def setWingAngle(angles):
+    leftAngle = angles[0]
+    rightAngle = angles[1]
+    LOG.debug("Setting: %d %d" % (leftAngle, rightAngle))
+    controller.W_glider_command("W:%s:%s" % (leftAngle, rightAngle))
+
+
+def center_wings():
+    lcenter, rcenter, servoRange = PILOT.getWingCenterAndRange()
+    setWingAngle([lcenter, rcenter])
+
+def min_wings():
+    lcenter, rcenter, servoRange = PILOT.getWingCenterAndRange()
+    setWingAngle([lcenter-servoRange, rcenter-servoRange])
+
+def max_wings():
+    lcenter, rcenter, servoRange = PILOT.getWingCenterAndRange()
+    setWingAngle([lcenter+servoRange, rcenter+servoRange])
+    
 
 def releaseChord():
     controller.release()
@@ -105,17 +155,3 @@ def releaseChord():
 
 def releaseParachute():
     controller.releaseChute()
-
-
-
-def setup_custom_logger(name=None, loglevel=logging.INFO):
-    logger = logging.getLogger(name)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    handler.setFormatter(formatter)
-    logger.setLevel(loglevel)
-    logger.addHandler(handler)
-    return logger
-
-LOG = setup_custom_logger('glider_lib', loglevel=logging.DEBUG)

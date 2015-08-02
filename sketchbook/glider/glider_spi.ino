@@ -65,7 +65,7 @@ void clearSPIBuffer(){
 void processSPIBuffer(int index){
   // Copy the command for later processing..
   strncpy(command_buff, input_line, index);
-  command_buff[15] = '\0';
+  command_buff[index] = '\0';
   Serial.print("Command: ");
   Serial.println(command_buff);
   commandReady = true;
