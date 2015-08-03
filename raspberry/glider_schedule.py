@@ -1,7 +1,9 @@
+import log
 import sys
-import datetime, time
+import time
 import json
 import logging
+import datetime
 import threading
 
 #####################################
@@ -9,7 +11,7 @@ import threading
 #####################################
 STATE_DATA = {}
 FUNC_STACK = {}
-LOG         = logging.getLogger('scheduler')
+LOG = log.setup_custom_logger('scheduler')
 LOG.setLevel(logging.DEBUG)
 
 #####################################

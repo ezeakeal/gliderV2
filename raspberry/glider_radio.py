@@ -1,45 +1,98 @@
-import sys
+##############################################
+#
+# GliderV2 Client Software 
+# Author: Daniel Vagg
+# 
+##############################################
+import log
 import time
-import json
-import smbus
-import logging 
+import serial
+import logging
+from xbee import XBee
 from threading import Thread
+
 # GUIDE
 # http://ava.upuaut.net/?p=768
-
-class XbeeRadio():
-    """
-    XbeeRadio class
-    """
-    def __init__(self):
-        self.read_interval = .5
-        pass
-
-    def readLoop(self):
-        while self.threadAlive:
-            # self.readGPS()
-            time.sleep(self.read_interval)
-
-    def start(self):
-        LOG.info("Starting GPS thread")
-        readThread = Thread( target=self.readLoop, args=() )
-        self.threadAlive = True
-        readThread.start()
-
-    def stop(self):
-        self.threadAlive = False
-
-def setup_custom_logger(name=None, loglevel=logging.INFO):
-    logger = logging.getLogger(name)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    handler.setFormatter(formatter)
-    logger.setLevel(loglevel)
-    logger.addHandler(handler)
-    return logger
 
 ##########################################
 # GLOBALS
 ##########################################
-LOG = setup_custom_logger("radio", loglevel=logging.ERROR)
+LOG = log.setup_custom_logger('radio')
+LOG.setLevel(logging.DEBUG)
+
+class Transceiver():
+    def __init__(self, serialPath, baud, timeout=.5, datahandler=None):
+        self.datahandler = datahandler
+        self.readTimeout = timeout
+        self.threadAlive = True
+        self.serialPath = serialPath
+        self.baud = baud
+        self.xbee = None
+
+        self.openConn()
+
+    def reset(self):
+        pass
+
+    def getChecksum(self, strmsg):
+        csum = 0
+        for c in strmsg:
+            csum ^= ord(c)
+        return chr(csum)
+
+    def write(self, msg):
+        msg = "%s*%s\n" % (msg, self.getChecksum(msg))
+        try:
+            LOG.debug("Sending: '%s'" % msg)
+            self.xbee.serial.write(msg)
+            return True
+        except Exception, e:
+            LOG.error(e)
+            self.reset()
+
+    def openConn(self):
+        LOG.info("Opening Serial")
+        while not self.xbee:
+            try:
+                ser = serial.Serial(self.serialPath, 9600, timeout=self.readTimeout)
+                self.xbee = XBee(ser)
+                LOG.debug("Initialized transceiver at BaudRate: %s" % (self.baud))
+            except Exception, e:
+                LOG.error(e)
+                LOG.error("Error while using serial path: %s. Retrying.." % self.serialPath)
+                time.sleep(1)
+
+    def readLoop(self):
+        while True:
+            try:
+                msg = self.xbee.serial.readline()
+                msg = msg.rstrip() # Remove the newline part
+                if msg and self.datahandler:
+                    LOG.debug("Received: %s" % msg)
+                    # Validate the message
+                    msgparts = msg.split("*")
+                    chksum = msgparts[-1]
+                    msgtxt = "".join(msgparts[:-1])
+                    calcsum = self.getChecksum(msgtxt)
+                    if calcsum == chksum:
+                        LOG.debug("Checksum validated (%s - %s) (%s)" % (calcsum, chksum, msg))
+                        self.datahandler(msgtxt)
+                    else:
+                        LOG.warning("Checksum mismatch (%s - %s) (%s)" % (calcsum, chksum, msg))
+            except Exception, e:
+                LOG.error(e)
+
+    def start(self):
+        LOG.info("Starting RADIO thread")
+        thread = Thread( target=self.readLoop, args=() )
+        self.threadAlive = True
+        thread.start()
+
+    def stop(self):
+        self.threadAlive = False
+
+    def close(self):
+        LOG.info("Closing Serial")
+        self.xbee.serial.close()
+
+#---------- END CLASS -------------

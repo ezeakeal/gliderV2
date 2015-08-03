@@ -1,4 +1,5 @@
 import sys
+import log
 import math
 import time
 import types
@@ -19,17 +20,8 @@ from glider_states import healthCheck, ascent, release, glide, parachute, recove
 ##########################################
 # GLOBALS
 ##########################################
-LOG         = logging.getLogger()
+LOG = log.setup_custom_logger('glider')
 LOG.setLevel(logging.WARN)
-LOG.addHandler(logging.StreamHandler(sys.stdout))
-
-RUNNING           = True
-DESIRED_PITCH     = 0.05
-RELEASED          = False
-PARACHUTE_HEIGHT  = 1000
-GLIDE_INTERVAL    = 0.05
-
-PERSIST_DATA = {}
 
 STATE_MACHINE = {
     "HEALTH_CHECK"  : healthCheck(),
@@ -40,7 +32,8 @@ STATE_MACHINE = {
     "RECOVER"       : recovery(),
     "ERROR"         : errorState()
 }
-CURRENT_STATE = "FLIGHT"
+CURRENT_STATE = "HEALTH_CHECK"
+RUNNING = True
 
 ##########################################
 # FUNCTIONS - UTIL
@@ -64,7 +57,7 @@ def shutDown():
     glider_lib.shutDown()
 
 
-def glide():
+def runGliderStateMachine():
     global CURRENT_STATE
     glider_lib.speak("Initialized")
     while RUNNING:
@@ -74,6 +67,13 @@ def glide():
             stateClass.rest()
             stateClass.execute()
             newState = stateClass.switch()
+            # Check if we need to override the state for any reason (this signal comes from groundstation)
+            if glider_lib.getOverrideState():
+                overrideState = glider_lib.getOverrideState()
+                glider_lib.setOverrideState(None)
+                if overrideState in STATE_MACHINE.keys():
+                    newState = overrideState
+            # Switch in to new state
             if newState:
                 LOG.debug("State is being updated from (%s) to (%s)" % (
                     CURRENT_STATE, newState))
@@ -84,7 +84,9 @@ def glide():
 
 
 if __name__ == '__main__':
-    startUp()
-    glide()
-    shutDown()
-        
+    try:
+        startUp()
+        runGliderStateMachine()
+        shutDown()
+    except:
+        print traceback.print_exc()

@@ -1,3 +1,4 @@
+import log
 import time
 import logging
 import datetime
@@ -19,22 +20,22 @@ spi = None
 wing_angle = 0
 max_speed = 40000 # fuckit.. keep it that low.
 
+LOG = log.setup_custom_logger('ATMEGA')
+LOG.setLevel(logging.WARN)
+
 ##########################################
 # FUNCTIONS
 ##########################################
 def W_glider_command(command):
     comm_string = "$%s;" % command
-    print "Sending %s" % comm_string
+    LOG.debug("Sending %s" % comm_string)
     char_arr = [ord(i) for i in comm_string]
-    # print "Command = %s" % (comm_string)
     
     while True:
         response = raw_xfer(char_arr)
         if response == char_arr:
-            # print "Success"
             break
         else:
-            # print "Failure"
             reset_spi()
         time.sleep(delay_reset)
 

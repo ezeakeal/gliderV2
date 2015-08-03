@@ -1,4 +1,5 @@
 import os
+import log
 import time
 import numpy
 import logging
@@ -11,8 +12,8 @@ import glider_states as states
 ##########################################
 # GLOBALS
 ##########################################
-LOG         = logging.getLogger('state_controller')
-LOG.setLevel(logging.DEBUG)
+LOG = log.setup_custom_logger('state_controller')
+LOG.setLevel(logging.WARN)
 ##########################################
 # FUNCTIONS - UTIL
 ##########################################
@@ -121,7 +122,7 @@ class ascent(gliderState):
         self.ascent_nodes = []
         self.ascent_rates = []
         self.median_ascent_rate = 0
-        self.sleepTime = 30
+        self.sleepTime = 10
         self.minAltDelta = 500
         self.minRateCount = 10
         self.desiredAltitude = 22000
@@ -212,16 +213,16 @@ class glide(gliderState):
         self.nextState = "PARACHUTE"
         self.parachute_height = 1500
         self.location = None
-        self.sleepTime = 0.05
+        self.sleepTime = 0.02
 
     def execute(self):
         # Get our new location
         self.location = glider_lib.getLocation()
-        LOG.debug("Current Location: %s" % self.location)
+        LOG.error("Current Location: %s" % self.location)
         # Update the pilot
         glider_lib.updatePilotLocation(self.location)
         wingAngles = glider_lib.getPilotWingCommand()
-        LOG.debug("Wing angles received: %s" % wingAngles)
+        LOG.error("Wing angles received: %s" % wingAngles)
         if wingAngles:
             glider_lib.setWingAngle(wingAngles)
 

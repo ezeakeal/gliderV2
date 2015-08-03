@@ -1,11 +1,15 @@
+import log
 import sys
 import time
 import json
 import smbus
-import logging 
+import logging
 from threading import Thread
 # GUIDE
 # http://ava.upuaut.net/?p=768
+
+LOG = log.setup_custom_logger("GPS")
+LOG.setLevel(logging.ERROR)
 
 class GPS_I2C(object):
     """
@@ -68,13 +72,16 @@ class GPS_I2C(object):
 
     def parseResponse(self, gpsLine):
         gpsChars = ''.join(chr(c) for c in gpsLine)
+        # Check if gps data is to be faked, and if not check if we have a * in it
         if self.fake_data:
-            gpsChars = '$GNGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47'
+            gpsChars = self.fake_data
         if "*" not in gpsChars:
             return False # We need to find this char to get the chksum val..
+        # Split up GPS components
         gpsStr, chkSum = gpsChars.split('*')
         gpsComponents = gpsStr.split(',')
         gpsStart = gpsComponents[0]
+        # Read in the GPS data
         if (gpsStart == "$GNGGA"):
             chkVal = 0
             for ch in gpsStr[1:]: # Remove the $
@@ -110,18 +117,3 @@ class GPS_I2C(object):
 
     def getData(self):
         return self.gps_data
-
-def setup_custom_logger(name=None, loglevel=logging.INFO):
-    logger = logging.getLogger(name)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    handler.setFormatter(formatter)
-    logger.setLevel(loglevel)
-    logger.addHandler(handler)
-    return logger
-
-##########################################
-# GLOBALS
-##########################################
-LOG               = setup_custom_logger("gps", loglevel=logging.ERROR)

@@ -1,3 +1,4 @@
+import log
 import time
 import math
 import logging
@@ -6,8 +7,8 @@ from threading import Thread
 ##############################################
 # GLOBALS
 ##############################################
-LOG         = logging.getLogger('pilot')
-LOG.setLevel(logging.WARN)
+LOG = log.setup_custom_logger('pilot')
+LOG.setLevel(logging.DEBUG)
 
 
 class Pilot(object):
@@ -46,7 +47,10 @@ class Pilot(object):
         self.poll_interval = self.getOrientPollInterval()
         self.wing_calc_interval = wing_calc_interval
 
-        
+    def updatePitch(self, angle):
+        LOG.error("Updated desired pitch: %s" % angle)
+        self.desired_pitch = angle
+
     def getWingCenterAndRange(self):
         lcenter = self.wing_param['left']['center']
         rcenter = self.wing_param['right']['center']
@@ -64,41 +68,36 @@ class Pilot(object):
         self.O_IMU.setAccelEnable(True)
         self.O_IMU.setCompassEnable(True)
 
-    
     def start(self):
-        pilotThread = Thread( target=self.update_target_wings, args=() )
+        sensorThread = Thread( target=self.updateOrientation, args=() )
+        pilotThread = Thread( target=self.updateIntendWingAngle, args=() )
         self.threadAlive = True
         LOG.info("Starting up orienation and angle calculation threads now")
+        sensorThread.start()
         pilotThread.start()
 
     def stop(self):
         self.threadAlive = False
 
-
-    def update_target_wings(self):
+    def updateOrientation(self):
         while self.threadAlive:
             if self.O_IMU.IMURead():
-                self.updateOrientation()
-                self.updateIntendWingAngle()
+                data = self.O_IMU.getIMUData()
+                fusionPose = data["fusionPose"]
+                self.roll = fusionPose[0]
+                self.pitch = fusionPose[1]
+                self.yaw = fusionPose[2]
+                LOG.debug("r: %f p: %f y: %f" % (
+                    math.degrees(self.roll), math.degrees(self.pitch), math.degrees(self.yaw))
+                )
             time.sleep(self.poll_interval*1.0/1000.0)
-
-
-    def updateOrientation(self):
-        data = self.O_IMU.getIMUData()
-        fusionPose = data["fusionPose"]
-        self.roll = fusionPose[0]
-        self.pitch = fusionPose[1]
-        self.yaw = fusionPose[2]
-        LOG.error("r: %f p: %f y: %f" % (
-            math.degrees(self.roll), math.degrees(self.pitch), math.degrees(self.yaw))
-        )
 
 
     def getDesiredRoll(self, yawDelta_rad):
         tanSigma = 2
         # tan cycles twice over 2pi, so scale rad_delta appropriately. 
         # We are getting a scalar between -1 and 1 here
-        LOG.info("Delta: %f (%f)" % (
+        LOG.debug("Roll Delta: %f (%f)" % (
             yawDelta_rad, math.degrees(yawDelta_rad)
         ))
         tanScale = math.tan(yawDelta_rad/2)/tanSigma 
@@ -109,35 +108,42 @@ class Pilot(object):
 
 
     def updateIntendWingAngle(self):
-        # Initialize the wing adjustments at 0
-        # We will add up all adjustments, then scale them to the ranges of the servos.
-        wing_left = 0
-        wing_right = 0
-        # Now adjust for pitch
-        deltaPitch = self.pitch - self.desired_pitch
-        wing_left += deltaPitch
-        wing_right += deltaPitch
-        # Calculate a desired roll from our yaw
-        deltaYaw = min(self.desired_yaw - self.yaw, 
-            self.yaw - self.desired_yaw)
-        desired_roll = self.getDesiredRoll(deltaYaw)
-        deltaRoll = desired_roll - self.roll # This is radians
-        # Adjust the wings again for roll
-        wing_left += deltaRoll
-        wing_right -= deltaRoll
-        # Scale these angles now based on maximum ranges of the servos
-        maxAngle = max(math.fabs(wing_left), math.fabs(wing_right))
-        wing_left_scaled = wing_left
-        wing_right_scaled = wing_right
-        if maxAngle > math.radians(self.servo_range):
-            angleScale = maxAngle/math.radians(self.servo_range)
-            wing_left_scaled /= angleScale
-            wing_right_scaled /= angleScale
-        # Calculate servo degrees
-        self.wing_param['left']['intended'] = int(self.wing_param['left']['center'] + math.degrees(wing_left_scaled))
-        self.wing_param['right']['intended'] = int(self.wing_param['right']['center'] + math.degrees(wing_right_scaled))
-        LOG.info("Wing Angles: %02.1f %02.1f" % (
-            self.wing_param['left']['intended'], self.wing_param['right']['intended']))
+        while self.threadAlive:
+            # Initialize the wing adjustments at 0
+            # We will add up all adjustments, then scale them to the ranges of the servos.
+            wing_left = 0
+            wing_right = 0
+
+            # Now adjust for pitch
+            deltaPitch = self.pitch - self.desired_pitch
+            wing_left -= deltaPitch
+            wing_right += deltaPitch
+
+            # Calculate a desired roll from our yaw
+            deltaYaw = min(self.desired_yaw - self.yaw, 
+                self.yaw - self.desired_yaw)
+            desired_roll = self.getDesiredRoll(deltaYaw)
+            deltaRoll = desired_roll - self.roll # This is radians
+
+            # Adjust the wings again for roll
+            wing_left += deltaRoll
+            wing_right -= deltaRoll
+
+            # Scale these angles now based on maximum ranges of the servos
+            maxAngle = max(math.fabs(wing_left), math.fabs(wing_right))
+            wing_left_scaled = wing_left
+            wing_right_scaled = wing_right
+            if maxAngle > math.radians(self.servo_range):
+                angleScale = maxAngle/math.radians(self.servo_range)
+                wing_left_scaled /= angleScale
+                wing_right_scaled /= angleScale
+
+            # Calculate servo degrees
+            self.wing_param['left']['intended'] = int(self.wing_param['left']['center'] + math.degrees(wing_left_scaled))
+            self.wing_param['right']['intended'] = int(self.wing_param['right']['center'] + math.degrees(wing_right_scaled))
+            LOG.debug("Wing Angles: %02.1f %02.1f" % (
+                self.wing_param['left']['intended'], self.wing_param['right']['intended']))
+            time.sleep(self.wing_calc_interval)
 
     
     def updateCurrentLocation(self, location):
@@ -151,10 +157,10 @@ class Pilot(object):
         # http://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
         x1, y1 = self.location['lat'], self.location['lon']
         x2, y2 = self.destination[0], self.destination[1]
-        LOG.warning("X1 %s Y2 %s" % (x1, y1))
-        LOG.warning("X2 %s Y2 %s" % (x2, y2))
+        LOG.debug("X1 %s Y2 %s" % (x1, y1))
+        LOG.debug("X2 %s Y2 %s" % (x2, y2))
         if None in [x1, x2, y1, y2]:
-            LOG.error("Some coordinates are blank")
+            LOG.warning("Some coordinates are blank")
             return
         # Convert gps coordinates to radian degrees
         lon1, lat1, lon2, lat2 = map(math.radians, [y1, x1, y2, x2])
