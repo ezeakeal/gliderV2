@@ -49,6 +49,8 @@ def dataHandler(packet):
         setOverrideState("_".join(data))
     if instruct == "PA":
         setPitchAngle(data[0])
+    if instruct == "DEST":
+        setDestination(data[0], data[1])
 
 
 ##########################################
@@ -110,6 +112,11 @@ def setPitchAngle(newAngle):
     except Exception, e:
         LOG.error(e)
 
+
+def setDestination(lat, lon):
+    PILOT.updateDestination(lat, lon)
+
+
 def speak(text):
     LOG.info("Speaking %s" % text)
 
@@ -136,8 +143,8 @@ def getBatteryStatus():
 
 
 def getLocation():
-    gpsData = GPS.getData()
-    return gpsData
+    location = GPS.getData()
+    return location
 
 
 def sendTelem(msg=""):
@@ -158,7 +165,7 @@ def sendMessage(msg):
 
 
 def updatePilotLocation(location):
-    PILOT.updateCurrentLocation(location)
+    PILOT.updateLocation(location['lat'], location['lon'])
 
 
 def getPilotWingCommand():

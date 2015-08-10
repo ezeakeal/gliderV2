@@ -8,7 +8,7 @@ from threading import Thread
 # GLOBALS
 ##############################################
 LOG = log.setup_custom_logger('pilot')
-LOG.setLevel(logging.DEBUG)
+LOG.setLevel(logging.WARN)
 
 
 class Pilot(object):
@@ -19,8 +19,8 @@ class Pilot(object):
 
     def __init__(self, O_IMU, 
         desired_yaw=0, desired_pitch=-0.175, 
-        destination=(52.254197,-7.181244),
-        location=(52.254197,-7.181244),
+        destination=[52.254197,-7.181244],
+        location=[52.254197,-7.181244],
         wing_calc_interval=0.02,
         servo_range=30):
         
@@ -146,16 +146,21 @@ class Pilot(object):
             time.sleep(self.wing_calc_interval)
 
     
-    def updateCurrentLocation(self, location):
-        if not location:
-            return 
-        self.location = location
-        self.updateDesiredYaw()
+    def updateLocation(self, lat, lon):
+        self.location[0] = lat
+        self.location[1] = lon
+        return self.location
+
+
+    def updateDestination(self, lat, lon):
+        self.destination[0] = lat
+        self.destination[1] = lon
+        return self.destination
 
 
     def updateDesiredYaw(self):
         # http://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
-        x1, y1 = self.location['lat'], self.location['lon']
+        x1, y1 = self.location[0], self.location[1]
         x2, y2 = self.destination[0], self.destination[1]
         LOG.debug("X1 %s Y2 %s" % (x1, y1))
         LOG.debug("X2 %s Y2 %s" % (x2, y2))

@@ -114,6 +114,5 @@ class GPS_I2C(object):
     def stop(self):
         self.threadAlive = False
 
-
     def getData(self):
         return self.gps_data

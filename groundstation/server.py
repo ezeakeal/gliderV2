@@ -1,8 +1,8 @@
 ##############################################
 #
-# CanSat Client Software 
-# For use with launch of CanSat:
-#   UCD, Space Science Masters, 2014
+# Glider GroundStation Software 
+# For use with launch of GliderV2:
+#   Daniel Vagg 2015
 #
 ##############################################
 import os
@@ -11,6 +11,8 @@ import time
 import json
 import pygmaps
 import logging
+
+# https://code.google.com/p/jsc3d/
 
 #####################################
 # GLOBALS

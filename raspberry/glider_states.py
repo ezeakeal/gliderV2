@@ -61,7 +61,8 @@ class gliderState(object):
 
     def switch(self):
         LOG.info("Next state: %s" % self.nextState)
-        assert(self.nextState is not None)
+        if self.nextState is None:
+            raise Exception("NextState not defined")
         if self.readyToSwitch:
             glider_lib.speak("Switching state to %s" % self.nextState)
             return self.nextState
@@ -81,6 +82,7 @@ class healthCheck(gliderState):
         self.checkedWings = False
 
     def execute(self):
+        glider_lib.center_wings()
         if not self.checkedWings:
             self.wingCheck()
         # Get the location data, figure if locked
@@ -130,6 +132,7 @@ class ascent(gliderState):
         self.nextState = "RELEASE"
 
     def execute(self):
+        glider_lib.center_wings()
         LOG.info("ASCENDING!")
         lastNode = None
         if len(self.ascent_nodes) > 0:
@@ -236,6 +239,13 @@ class glide(gliderState):
 #         PARACHUTE
 #-----------------------------------
 class parachute(gliderState):
+    def __init__(self):
+        super(parachute, self).__init__()
+        self.nextState = "RECOVER"
+        self.parachute_height = 1500
+        self.location = None
+        self.sleepTime = 0.02
+
     def execute(self):
         glider_lib.speak("Releasing parachute!")
         location = glider_lib.getLocation()
@@ -244,38 +254,35 @@ class parachute(gliderState):
         glider_lib.releaseParachute()
 
     def switch(self):
-        global CURRENT_STATE
-        LOG.info("Attempting Recovery")
-        if RELEASED:
-            CURRENT_STATE = "PARACHUTE"
-        else:
-            CURRENT_STATE = "RELEASE"
+        self.readyToSwitch = True
+        super(parachute, self).switch()
 
 
 #-----------------------------------
 #         EMERGENCY
 #-----------------------------------
 class recovery(gliderState):
+    def __init__(self):
+        super(recovery, self).__init__()
+        self.nextState = "RECOVER"
+        self.sleepTime = 15
+
     def execute(self):
-        glider_lib.speak("Recovery!")
+        glider_lib.speak("Help me")
         LOG.critical("Attempting Recovery")
-        location = glider_lib.getLocation()
-        orientation = glider_lib.getOrientation()
-        glider_lib.broadcastLocation()
 
     def switch(self):
-        global CURRENT_STATE
-        LOG.info("Attempting Recovery")
-        if RELEASED:
-            CURRENT_STATE = "PARACHUTE"
-        else:
-            CURRENT_STATE = "RELEASE"
+        pass
 
 
 #-----------------------------------
 #         EMERGENCY
 #-----------------------------------
 class errorState(gliderState):
+    def __init__(self):
+        super(errorState, self).__init__()
+        self.nextState = "PARACHUTE"
+
     def execute(self):
         # Send data over radio.
         # Tell people there is something wrong
@@ -284,4 +291,7 @@ class errorState(gliderState):
         # Send battery level
         # LOOK FOR A RESPONSE!
         # We need to set the state it should go in to..
+        pass
+
+    def switch(self):
         pass

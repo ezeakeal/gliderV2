@@ -1,9 +1,9 @@
 #!/usr/bin/python
 ##############################################
 #
-# CanSat Client Software 
-# For use with launch of CanSat:
-#   UCD, Space Science Masters, 2014
+# Glider GroundStation Software 
+# For use with launch of GliderV2:
+#   Daniel Vagg 2015
 #
 ##############################################
 
@@ -13,7 +13,7 @@ import logging
 import argparse
 import traceback
 
-import cSat_core as core
+import core
 
 #####################################
 # GLOBALS
@@ -24,7 +24,7 @@ import cSat_core as core
 #####################################
 # Manage Ctrl+C gracefully
 def signal_handler_quit(signal, frame):
-  logging.info("Shutting down cSat")
+  logging.info("Shutting down GroundStation")
   core.shutdown()
   sys.exit(0)
   
@@ -38,8 +38,8 @@ def configureLogging(numeric_level):
   
 def createParser():
   parser = argparse.ArgumentParser()
-  parser.add_argument('tminus', action='store', help='Path to tMinux interface')
-  parser.add_argument('xbee', action='store', help='Path to XBee interface')
+  parser.add_argument('xbee', action='store', help='Path to XBee interface', default="/dev/ttyUSB0")
+  parser.add_argument('datadir', action='store', help='Path to Data directory', default="./data")
   parser.add_argument('-v', '--verbose', action='count', default=0, help='Increases verbosity of logging.')
   return parser
 
@@ -49,15 +49,15 @@ def createParser():
 def main():
   parser = createParser()
   results = parser.parse_args()
+  # Use the args
   loglevel = results.verbose
-  tminus_path = results.tminus
   xbee_path = results.xbee
+  data_path = results.datadir
   
   signal.signal(signal.SIGINT, signal_handler_quit) # Manage Ctrl+C
   configureLogging(loglevel)
 
   try:
-    core.TMINUS_DEV["PATH"] = tminus_path
     core.XBEE_DEV["PATH"] = xbee_path
     core.initialize()
     core.run()

@@ -1,8 +1,8 @@
 ##############################################
 #
-# CanSat Client Software 
-# For use with launch of CanSat:
-#   UCD, Space Science Masters, 2014
+# Glider GroundStation Software 
+# For use with launch of GliderV2:
+#   Daniel Vagg 2015
 #
 ##############################################
 #!/usr/bin/python
@@ -25,16 +25,6 @@ from cSat_transceiver import transceiver
 #####################################
 AUTO_RESTART = False
 
-TMINUS_DEV = {
-    "NAME": "TMINUS",
-    "COMM": None,
-    "PATH": None,
-    "XBEE": False,
-    "DATA": "./data/tminus.dat",
-    "RAW": "./data/tminus.raw",
-    "BAUDRATE": 19200
-}
-
 XBEE_DEV = {
     "NAME": "XBEE",
     "COMM": None,
@@ -49,7 +39,7 @@ XBEE_DEV = {
 # FUNCTIONS
 #####################################
 def initialize():
-    global TMINUS_DEV, XBEE_DEV
+    global XBEE_DEV
 
     # Initialize the iBus interface or wait for it to become available.
     for device in [TMINUS_DEV, XBEE_DEV]:

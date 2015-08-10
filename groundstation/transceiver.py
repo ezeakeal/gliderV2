@@ -1,77 +1,95 @@
 ##############################################
 #
-# CanSat Client Software 
-# For use with launch of CanSat:
-#   UCD, Space Science Masters, 2014
+# Glider GroundStation Software 
+# For use with launch of GliderV2:
+#   Daniel Vagg 2015
 #
 ##############################################
 
+import log
 import time
 import serial
 import logging
 from xbee import XBee
-from serial import SerialException
+from threading import Thread
 
-class transceiver():
-    devName = None
-    serialPath = None
-    receiveTimeout = 15
+LOG = log.setup_custom_logger('radio')
+LOG.setLevel(logging.DEBUG)
 
-    # Initialize the serial connection - then use some commands I saw somewhere once
-    def __init__(self, serialPath, name, baud):
-        self.devName = name
-        self.lastReceive = time.time()
+class Transceiver():
+    def __init__(self, serialPath, baud, timeout=.5, datahandler=None):
+        self.datahandler = datahandler
+        self.readTimeout = timeout
+        self.threadAlive = True
         self.serialPath = serialPath
         self.baud = baud
+        self.xbee = None
 
         self.openConn()
-            
-        logging.debug("Initialized transceiver (%s) at BaudRate: %s" % (name, baud))
-
-    def readTelem(self):
-        dataString = None
-        try:
-            dataString = self.SDEV.readline()
-        except Exception, e:
-            logging.warning(e)
-            self.reset()
-        # if the dataString was empty, and we haven't received something in a while.. reset
-        if (not dataString or dataString == ''): 
-            self.reset()
-        return dataString
-
-    def requestRepeat(self, index):
-        requestStr = "RT:%s" % index
-        self.transmit(requestStr)
 
     def reset(self):
         pass
 
-    def transmit(self, msg):
+    def getChecksum(self, strmsg):
         csum = 0
-        for c in msg:
+        for c in strmsg:
             csum ^= ord(c)
-        msg = "%s*%s" % (msg, chr(csum))
+        return chr(csum)
+
+    def write(self, msg):
+        msg = "%s*%s\n" % (msg, self.getChecksum(msg))
         try:
-            self.SDEV.write(msg)
+            LOG.debug("Sending: '%s'" % msg)
+            self.xbee.serial.write(msg)
             return True
-        except SerialException, e:
-            logging.warning(e)
+        except Exception, e:
+            LOG.error(e)
             self.reset()
 
     def openConn(self):
-        logging.info("Opening Serial for %s" % self.devName)
-        try:
-            ser = serial.Serial(self.serialPath, 9600)
-            xbee = XBee(ser)
-            self.SDEV = xbee.serial
-        except:
-            logging.error("No Serial device found at path: %s. Retrying in 10 seconds" % self.serialPath)
-            self.SDEV = None
-            time.sleep(10)
+        LOG.info("Opening Serial")
+        while not self.xbee:
+            try:
+                ser = serial.Serial(self.serialPath, 9600, timeout=self.readTimeout)
+                self.xbee = XBee(ser)
+                LOG.debug("Initialized transceiver at BaudRate: %s" % (self.baud))
+            except Exception, e:
+                LOG.error(e)
+                LOG.error("Error while using serial path: %s. Retrying.." % self.serialPath)
+                time.sleep(1)
+
+    def readLoop(self):
+        while True:
+            try:
+                msg = self.xbee.serial.readline()
+                msg = msg.rstrip() # Remove the newline part
+                if msg and self.datahandler:
+                    LOG.debug("Received: %s" % msg)
+                    # Validate the message
+                    msgparts = msg.split("*")
+                    chksum = msgparts[-1]
+                    msgtxt = "".join(msgparts[:-1])
+                    calcsum = self.getChecksum(msgtxt)
+                    if calcsum == chksum:
+                        LOG.debug("Checksum validated (%s - %s) (%s)" % (calcsum, chksum, msg))
+                        self.datahandler(msgtxt)
+                    else:
+                        LOG.warning("Checksum mismatch (%s - %s) (%s)" % (calcsum, chksum, msg))
+            except Exception, e:
+                LOG.error(e)
+
+    def start(self):
+        LOG.info("Starting RADIO thread")
+        thread = Thread( target=self.readLoop, args=() )
+        self.threadAlive = True
+        thread.start()
+
+    def stop(self):
+        self.threadAlive = False
 
     def close(self):
-        logging.info("Closing Serial for %s" % self.devName)
-        self.SDEV.close()
+        LOG.info("Closing Serial")
+        self.xbee.serial.close()
+
 
 #---------- END CLASS -------------
