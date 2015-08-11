@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block main %}
+    <div class="col-md-8">
+        Glider Render
+    </div>
+    <div class="col-md-4">
+        Wing Angles
+    </div>
+{% end %}
+
+{% block sidebar %}
+    Last telemetry packet:
+    <div id="telemPacket" class="well well-sm">
+        <dl>
+          <dt>GPS</dt>
+          <dd param="gps">Some Value</dd>
+          <dt>Something else</dt>
+          <dd param="orientation">Some Value</dd>
+        </dl>
+    </div>
+{% end %}
