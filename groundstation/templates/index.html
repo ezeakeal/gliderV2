@@ -1,33 +1,40 @@
 {% extends "base.html" %}
 
 {% block main %}
-    <div class="col-md-12 embed-responsive embed-responsive-4by3">
-      <div id="glider_div" class="embed-responsive-item">
+    <div class="col-md-12">
+      <div class="bs-example bs-example-tabs" data-example-id="togglable-tabs">
+        
+        <ul id="gliderTabs" class="nav nav-tabs" role="tablist">
+          <li role="presentation" class="active">
+            <a href="#glider" id="glider-tab" role="tab" data-toggle="tab" aria-controls="glider" aria-expanded="true">Glider</a>
+          </li>
+          <li role="presentation" class="">
+            <a href="#map" role="tab" id="map-tab" data-toggle="tab" aria-controls="map" aria-expanded="false">Map</a>
+          </li>
+        </ul>
+
+        <div id="gliderTabContent" class="tab-content">
+          <div role="tabpanel" class="tab-pane fade active in embed-responsive embed-responsive-4by3" id="glider" aria-labelledby="glider-tab">
+            <div id="glider_div" class="embed-responsive-item">
+            </div>
+          </div>
+          
+          <div role="tabpanel" class="tab-pane fade" id="map" aria-labelledby="map-tab">
+            {% include "glider_map.html" %}
+          </div>
+          
+        </div>
       </div>
+      
     </div>
 {% end %}
 
 {% block sidebar %}
     <div class="row">
-      <h4>Wing Angles</h4>
-      <div id="telemPacket" class="well well-sm">
-        Angles..
-      </div>
+      {% include "glider_wings.html" %}
     </div>
     
     <div class="row">
-      <h4>Last telemetry packet:</h4>
-      <div id="telemPacket" class="well well-sm">
-        <dl>
-          <dt>GPS</dt>
-          <dd param="gps"></dd>
-          <dt>Pitch</dt>
-          <dd param="O_P"></dd>
-          <dt>Roll</dt>
-          <dd param="O_R"></dd>
-          <dt>Yaw</dt>
-          <dd param="O_Y"></dd>
-        </dl>
-      </div>
+      {% include "glider_telem.html" %}
     </div>
 {% end %}

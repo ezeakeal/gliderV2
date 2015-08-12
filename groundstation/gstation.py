@@ -115,7 +115,9 @@ class TelemHandler(tornado.web.RequestHandler):
     def get(self):
         millis = time.time() * 10
         telem = {
-            "gps": "fake data",
+            "lat": (53.2769317 + math.cos(millis)*.0001),
+            "lon": (-6.2179775 + math.cos(millis)*.005),
+            "alt": (20000 + math.cos(millis)*100),
             "O_P": math.cos(millis)*5, # 
             "O_R": math.sin(millis)*3, # roll
             "O_Y": math.sin(millis),

@@ -13,6 +13,7 @@ de2ra = function(degree){
 $(document).ready(function () {
     init();
     animate();
+    hookMapUpdateTimer();
 });
 
 function init() {
@@ -120,6 +121,7 @@ function animate() {
                 var sel = '#telemPacket dd[param="'+key+'"]'
                 $(sel).html(val);
             });
+            updateMarker(telemJSON);
             render(telemJSON);
         },
         error: function (xhr, ajaxOptions, thrownError) {
@@ -139,7 +141,6 @@ function render(telemJSON) {
     camera.lookAt( cameraTarget );
     renderer.render( scene, camera );
 }
-
 
 function onDocumentMouseMove( event ) {
 }
