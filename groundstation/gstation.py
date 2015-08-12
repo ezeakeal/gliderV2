@@ -8,6 +8,8 @@
 ##############################################
 
 import sys
+import math
+import time
 import json
 import signal
 import logging
@@ -111,9 +113,12 @@ class MainHandler(tornado.web.RequestHandler):
 
 class TelemHandler(tornado.web.RequestHandler):
     def get(self):
+        millis = time.time() * 10
         telem = {
             "gps": "fake data",
-            "orientation": "Something else..",
+            "O_P": math.cos(millis)*5, # 
+            "O_R": math.sin(millis)*3, # roll
+            "O_Y": math.sin(millis),
         }
         self.write(json.dumps(telem))
 
