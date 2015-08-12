@@ -44,7 +44,12 @@ function init() {
     loader.load( '/static/glider/glider.obj', function ( object ) {
         object.traverse( function ( child ){
             if ( child instanceof THREE.Mesh ){
-                child.material = new THREE.MeshPhongMaterial( { color: 0xAAAAFF } );
+                phongMaterial = new THREE.MeshPhongMaterial( { ambient: 0x555555, color: 0x555555, specular: 0xffffff, shininess: 50, shading: THREE.FlatShading } );
+                basicMaterial = new THREE.MeshBasicMaterial( { color: 0x88bbff, opacity: 1 } );
+
+                child.material = phongMaterial;
+
+                child.material = basicMaterial;
                 child.material.opacity = 0.8;
                 child.material.transparent = false;
             }
