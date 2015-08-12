@@ -21,14 +21,18 @@ LOG = log.setup_custom_logger('radio')
 LOG.setLevel(logging.DEBUG)
 
 class Transceiver():
-    def __init__(self, serialPath, baud, timeout=.5, datahandler=None):
-        self.datahandler = datahandler
-        self.readTimeout = timeout
+    def __init__(self, serialPath, baud, timeout=.5, datahandler=None, telemInterval=1):
         self.threadAlive = True
+        
+        self.datahandler = datahandler
         self.serialPath = serialPath
+        self.readTimeout = timeout
         self.baud = baud
         self.xbee = None
-
+        
+        self.telemInterval = telemInterval
+        self.telemString = None
+        
         self.openConn()
 
     def reset(self):
@@ -62,8 +66,11 @@ class Transceiver():
                 LOG.error("Error while using serial path: %s. Retrying.." % self.serialPath)
                 time.sleep(1)
 
+    def setTelemString(self, newTelem):
+        self.telemString = newTelem
+
     def readLoop(self):
-        while True:
+        while self.threadAlive:
             try:
                 msg = self.xbee.serial.readline()
                 msg = msg.rstrip() # Remove the newline part
@@ -82,11 +89,22 @@ class Transceiver():
             except Exception, e:
                 LOG.error(e)
 
+    def telemLoop(self):
+        while self.threadAlive:
+            try:
+                telem = self.telemString
+                self.write(telem)
+            except Exception, e:
+                LOG.error(e)
+
     def start(self):
         LOG.info("Starting RADIO thread")
-        thread = Thread( target=self.readLoop, args=() )
+        threadR = Thread( target=self.readLoop, args=() )
+        # Create telemetry loop in glider_lib, which uses this radio..
+        threadT = Thread( target=self.telemLoop, args=() )
         self.threadAlive = True
-        thread.start()
+        threadR.start()
+        threadT.start()
 
     def stop(self):
         self.threadAlive = False

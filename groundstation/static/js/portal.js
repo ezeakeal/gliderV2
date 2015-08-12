@@ -21,9 +21,9 @@ function init() {
 
     // Camera setup
     camera = new THREE.PerspectiveCamera( 45, container.clientWidth / container.clientHeight, 1, 2000 );
-    camera.position.z = 120;
-    camera.position.y = 50;
-    camera.position.x = 70;
+    camera.position.z = 15;
+    camera.position.y = 7;
+    camera.position.x = 10;
     cameraTarget = new THREE.Vector3( 0, 0, 0 );
 
     // scene
@@ -32,6 +32,9 @@ function init() {
     // Add lighting
     var ambient = new THREE.AmbientLight( 0xAAAAAA );
     scene.add( ambient );
+    var directionalLight = new THREE.DirectionalLight( 0xffeedd );
+    directionalLight.position.set( 2, 5, 7 ).normalize();
+    scene.add( directionalLight );
 
     // Setup loading manager
     var manager = new THREE.LoadingManager();
@@ -40,20 +43,8 @@ function init() {
     };
 
     // model
-    var loader = new THREE.OBJLoader( manager );
-    loader.load( '/static/glider/glider.obj', function ( object ) {
-        object.traverse( function ( child ){
-            if ( child instanceof THREE.Mesh ){
-                phongMaterial = new THREE.MeshPhongMaterial( { ambient: 0x555555, color: 0x555555, specular: 0xffffff, shininess: 50, shading: THREE.FlatShading } );
-                basicMaterial = new THREE.MeshBasicMaterial( { color: 0x88bbff, opacity: 1 } );
-
-                child.material = phongMaterial;
-
-                child.material = basicMaterial;
-                child.material.opacity = 0.8;
-                child.material.transparent = false;
-            }
-        });
+    var loader = new THREE.OBJMTLLoader( manager );
+    loader.load( '/static/glider/glider.obj', '/static/glider/glider.mtl', function ( object ) {
         scene.add( object );
         gliderObj = object;
     }, function ( xhr ) {
@@ -63,39 +54,39 @@ function init() {
         }
     }, function ( xhr ) {
     } );
+        
+    
 
     // YAW
     var plane = new THREE.Mesh(
-        new THREE.PlaneBufferGeometry( 60, 60 ),
-        new THREE.MeshPhongMaterial( { color: 0xFF0000, opacity: 0.3, transparent: true } )
+        new THREE.PlaneBufferGeometry( 6, 6 ),
+        new THREE.MeshPhongMaterial( { color: 0xFF0000, opacity: 0.2, transparent: true } )
     );
     plane.rotation.x = -Math.PI/2;
     scene.add( plane );
     // ROLL
     var plane = new THREE.Mesh(
-        new THREE.PlaneBufferGeometry( 60, 30 ),
-        new THREE.MeshPhongMaterial( { color: 0x00FF00, opacity: 0.3, transparent: true } )
+        new THREE.PlaneBufferGeometry( 6, 10 ),
+        new THREE.MeshPhongMaterial( { color: 0x00FF00, opacity: 0.2, transparent: true } )
     );
     plane.rotation.z = -Math.PI/2;
-    plane.position.x = 15;
+    plane.position.x = -5;
     scene.add( plane );
     // PITCH
     var plane = new THREE.Mesh(
-        new THREE.PlaneBufferGeometry( 30, 60 ),
-        new THREE.MeshPhongMaterial( { color: 0x0000FF, opacity: 0.3, transparent: true } )
+        new THREE.PlaneBufferGeometry( 3, 6 ),
+        new THREE.MeshPhongMaterial( { color: 0x0000FF, opacity: 0.2, transparent: true } )
     );
     plane.rotation.y = Math.PI/2;
-    plane.position.z = 15;
+    plane.position.z = 1.5;
     scene.add( plane );
 
     // Setup the Renderer
     renderer = new THREE.WebGLRenderer();
     renderer.setSize( container.clientWidth, container.clientHeight );
-    renderer.shadowMapEnabled = true;
-    renderer.shadowMapSoft = true;
 
     renderer.shadowCameraNear = 3;
-    renderer.shadowCameraFar = 400;
+    renderer.shadowCameraFar = 40;
     renderer.shadowCameraFov = 45;
     container.appendChild( renderer.domElement );
     // Setup the stats item
@@ -141,7 +132,7 @@ function animate() {
 
 function render(telemJSON) {
     if (gliderObj) {
-        gliderObj.rotation.x = de2ra(-90 + parseFloat(telemJSON['O_P']));
+        gliderObj.rotation.x = de2ra(parseFloat(telemJSON['O_P']));
         gliderObj.rotation.y = de2ra(parseFloat(telemJSON['O_R']));
         gliderObj.rotation.z = de2ra(parseFloat(telemJSON['O_Y']));
     }
