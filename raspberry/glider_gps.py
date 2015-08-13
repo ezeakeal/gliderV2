@@ -10,7 +10,7 @@ from threading import Thread
 # http://ava.upuaut.net/?p=768
 
 LOG = log.setup_custom_logger("GPS")
-LOG.setLevel(logging.ERROR)
+LOG.setLevel(logging.WARN)
 
 class GPS_I2C(object):
     """

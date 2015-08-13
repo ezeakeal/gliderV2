@@ -70,7 +70,7 @@ def dataHandler(packet):
 # GLOBAL COMPONENTS 
 ##########################################
 IMU         = IMU(O_IMU)
-GPS         = GPS_I2C(fakeData='$GNGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*59')
+GPS         = GPS_I2C(fakeData='$GNGGA,123519,5327.344,N,00777.830,E,1,08,0.9,545.4,M,46.9,M,,*57')
 RADIO       = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
 PILOT       = Pilot(IMU, desired_pitch=math.radians(-10))
 TELEM       = TelemetryHandler(RADIO, IMU, PILOT, GPS)
@@ -150,15 +150,6 @@ def setDestination(lat, lon):
 
 def speak(text):
     LOG.info("Speaking %s" % text)
-
-
-def logLocation(location, orientation):
-    logStr = "%s %s %s %s %s %s %s" % (
-        datetime.datetime.now(),
-        location['longitude'], location['latitude'], location['altitude'], 
-        degrees(orientation[0]), degrees(orientation[1]), degrees(orientation[2])
-    )
-    LOG.info(logStr)
 
 
 ##########################################

@@ -18,7 +18,7 @@ from threading import Thread
 # GLOBALS
 ##########################################
 LOG = log.setup_custom_logger('radio')
-LOG.setLevel(logging.DEBUG)
+LOG.setLevel(logging.WARN)
 
 class Transceiver():
     def __init__(self, serialPath, baud, timeout=.5, datahandler=None, telemInterval=1):

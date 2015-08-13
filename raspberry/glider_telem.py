@@ -120,8 +120,8 @@ class TelemetryHandler():
 
     def genTelemStr_gps(self):
         telStr = "%s_%s_%s_%s" % (
-            self.gps.gps_data['lat'], 
-            self.gps.gps_data['lon'], 
+            float(self.gps.gps_data['lat'])/100, 
+            float(self.gps.gps_data['lon'])/(-100), 
             self.gps.gps_data['alt'], 
             self.gps.gps_data['fixQual'],
         )

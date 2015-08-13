@@ -39,8 +39,8 @@ function updateMapPosition(){
 
 function updateMarker(telemJSON){
     if (marker){
-        var lat = telemJSON['gps']['g_lat'];
-        var lon = telemJSON['gps']['g_lon'];
+        var lat = telemJSON['gps']['G_LAT'];
+        var lon = telemJSON['gps']['G_LON'];
         var latlng = new google.maps.LatLng(lat, lon);
         marker.setPosition(latlng);
     }
