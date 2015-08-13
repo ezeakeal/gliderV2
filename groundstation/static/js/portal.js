@@ -3,6 +3,11 @@ $(document).ready(function () {
     init();
     animate();
     hookMapUpdateTimer();
+    $('#gliderTabs').click(function(){
+        setTimeout(function(){
+            window.dispatchEvent(new Event('resize')); // Forces resize event for iframe resizes
+        }, 500);
+    })
 });
 
 
