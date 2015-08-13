@@ -17,130 +17,136 @@ class Pilot(object):
     coordinates into intended wing angles
     """
 
-    def __init__(self, O_IMU, 
+    def __init__(self, IMU, 
         desired_yaw=0, desired_pitch=-0.175, 
+        turn_severity=.5, servo_range=0.5236,
         destination=[52.254197,-7.181244],
         location=[52.254197,-7.181244],
-        wing_calc_interval=0.02,
-        servo_range=30):
+        wing_calc_interval=0.02):
         
-        self.O_IMU = O_IMU
+        self.IMU = IMU
         self.threadAlive = False
-        self.configureOrientationChip()
         
         self.servo_range = servo_range
         self.wing_param = {
             "left": {"center": 90, "current": 0, "intended": 0},
             "right": {"center": 96, "current": 0, "intended": 0}
         }
-        
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
-        
+
+        self.turn_severity = turn_severity
         self.desired_pitch = desired_pitch
         self.desired_yaw = desired_yaw
 
         self.destination = destination
         self.location = location
 
-        self.poll_interval = self.getOrientPollInterval()
         self.wing_calc_interval = wing_calc_interval
 
+        LOG.debug("Turn Sev: %2.2f" % turn_severity)
+        LOG.debug("Servo Range: %2.2f" % math.degrees(servo_range))
+        LOG.debug("Desired Pitch: %2.2f" % math.degrees(desired_pitch))
+
+
     def updatePitch(self, angle):
-        LOG.error("Updated desired pitch: %s" % angle)
+        LOG.warning("Updated desired pitch: %s" % angle)
         self.desired_pitch = angle
+
+
+    def updateTurnSev(self, angle):
+        LOG.warning("Updated turn severity: %s" % angle)
+        self.turn_severity = angle
+
 
     def getWingCenterAndRange(self):
         lcenter = self.wing_param['left']['center']
         rcenter = self.wing_param['right']['center']
-        servoRange = self.servo_range
+        servoRange = math.degrees(self.servo_range)
         return lcenter, rcenter, servoRange
 
-    def getOrientPollInterval(self):
-        poll_interval = self.O_IMU.IMUGetPollInterval()
-        LOG.info("Recommended Poll Interval: %dmS\n" % poll_interval)
-        return poll_interval
-
-    def configureOrientationChip(self):
-        self.O_IMU.setSlerpPower(0.02)
-        self.O_IMU.setGyroEnable(True)
-        self.O_IMU.setAccelEnable(True)
-        self.O_IMU.setCompassEnable(True)
 
     def start(self):
-        sensorThread = Thread( target=self.updateOrientation, args=() )
         pilotThread = Thread( target=self.updateIntendWingAngle, args=() )
         self.threadAlive = True
-        LOG.info("Starting up orienation and angle calculation threads now")
-        sensorThread.start()
+        LOG.info("Starting up Pilot thread now")
         pilotThread.start()
+
 
     def stop(self):
         self.threadAlive = False
 
-    def updateOrientation(self):
-        while self.threadAlive:
-            if self.O_IMU.IMURead():
-                data = self.O_IMU.getIMUData()
-                fusionPose = data["fusionPose"]
-                self.roll = fusionPose[0]
-                self.pitch = fusionPose[1]
-                self.yaw = fusionPose[2]
-                LOG.debug("r: %f p: %f y: %f" % (
-                    math.degrees(self.roll), math.degrees(self.pitch), math.degrees(self.yaw))
-                )
-            time.sleep(self.poll_interval*1.0/1000.0)
+
+    def scaleAbsToLimit(self, val, limit):
+        if val > limit:
+            val = limit
+        elif val < -limit:
+            val = -limit
+        return val
 
 
     def getDesiredRoll(self, yawDelta_rad):
-        tanSigma = 2
-        # tan cycles twice over 2pi, so scale rad_delta appropriately. 
-        # We are getting a scalar between -1 and 1 here
-        LOG.debug("Roll Delta: %f (%f)" % (
-            yawDelta_rad, math.degrees(yawDelta_rad)
-        ))
-        tanScale = math.tan(yawDelta_rad/2)/tanSigma 
-        if math.fabs(tanScale) > 1:
-            tanScale = tanScale/math.fabs(tanScale) # limit it to 1
-        maxAbsRange = math.pi/6 # Maximum absolute roll angle in radians(+/- 30degrees)
-        return maxAbsRange * tanScale
+        # Turn severity defines how much the glider will roll 
+        # proportional to the difference in desired direction
+        # This multiplies the apparent difference in angle, as 
+        # tan will ramp up to +/- infinity at either +/- 90deg
+        # This gets limited later
+        yawDelta_rad *= self.turn_severity 
+        # Limit the delta to pi/2 on either side
+        yawDelta_rad = self.scaleAbsToLimit(yawDelta_rad, math.pi/2)
+        # Get the tan response to this figure 
+        tanScale = math.tan(yawDelta_rad)
+        tanScale = self.scaleAbsToLimit(tanScale, 1)
+        roll = self.servo_range * tanScale
+        roll *= -1 # Roll left (which is positive) if turning left (when yaw is negative)
+        return roll
 
 
     def updateIntendWingAngle(self):
         while self.threadAlive:
+            # Get the readings from the IMU
+            current_pitch = self.IMU.pitch
+            current_roll = self.IMU.roll
+            current_yaw = self.IMU.yaw
+            LOG.debug("P(%2.1f) R(%2.1f) Y(%2.1f)" % (
+                math.degrees(current_pitch), math.degrees(current_roll), math.degrees(current_yaw)))
             # Initialize the wing adjustments at 0
             # We will add up all adjustments, then scale them to the ranges of the servos.
             wing_left = 0
             wing_right = 0
-
+            LOG.debug("Delta wings = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left), math.degrees(wing_right)))
             # Now adjust for pitch
-            deltaPitch = self.pitch - self.desired_pitch
-            wing_left -= deltaPitch
+            deltaPitch = self.desired_pitch - current_pitch
+            wing_left += deltaPitch
             wing_right += deltaPitch
+            LOG.debug("Delta pitch: %2.1f" % (math.degrees(deltaPitch)))
+            LOG.debug("Delta wings = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left), math.degrees(wing_right)))
 
             # Calculate a desired roll from our yaw
-            deltaYaw = min(self.desired_yaw - self.yaw, 
-                self.yaw - self.desired_yaw)
+            deltaYaw = min(self.desired_yaw - current_yaw, 
+                current_yaw - self.desired_yaw)
             desired_roll = self.getDesiredRoll(deltaYaw)
-            deltaRoll = desired_roll - self.roll # This is radians
+            LOG.debug("Delta yaw: %2.1f (roll: %2.1f)" % (math.degrees(deltaYaw), math.degrees(desired_roll)))
+
+            deltaRoll = desired_roll - current_roll # This is radians
+            LOG.debug("Delta roll: %2.1f" % (math.degrees(deltaRoll)))
 
             # Adjust the wings again for roll
             wing_left += deltaRoll
             wing_right -= deltaRoll
+            LOG.debug("Delta wings = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left), math.degrees(wing_right)))
 
             # Scale these angles now based on maximum ranges of the servos
             maxAngle = max(math.fabs(wing_left), math.fabs(wing_right))
             wing_left_scaled = wing_left
             wing_right_scaled = wing_right
-            if maxAngle > math.radians(self.servo_range):
-                angleScale = maxAngle/math.radians(self.servo_range)
+            if maxAngle > self.servo_range:
+                angleScale = maxAngle/self.servo_range
                 wing_left_scaled /= angleScale
                 wing_right_scaled /= angleScale
+            LOG.debug("Scaled wing deltas = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left_scaled), math.degrees(wing_right_scaled)))
 
             # Calculate servo degrees
             self.wing_param['left']['intended'] = int(self.wing_param['left']['center'] + math.degrees(wing_left_scaled))
-            self.wing_param['right']['intended'] = int(self.wing_param['right']['center'] + math.degrees(wing_right_scaled))
+            self.wing_param['right']['intended'] = int(self.wing_param['right']['center'] - math.degrees(wing_right_scaled))
             LOG.debug("Wing Angles: %02.1f %02.1f" % (
                 self.wing_param['left']['intended'], self.wing_param['right']['intended']))
             time.sleep(self.wing_calc_interval)

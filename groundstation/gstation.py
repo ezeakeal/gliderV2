@@ -29,6 +29,7 @@ from transceiver import Transceiver
 RADIO = None
 TELEMFILE = "telem.raw"
 LAST_TELEM = None
+CURRENT_TELEM = {}
 
 
 #####################################
@@ -41,9 +42,9 @@ def signal_handler_quit(signal, frame):
     sys.exit(0)
 
 
-def startup():
+def startup(xbee_path):
     global RADIO
-    # RADIO = Transceiver(xbee_path, 9600, datahandler=data_handler)
+    RADIO = Transceiver(xbee_path, 9600, datahandler=data_handler)
     logging.debug("Created Radio instance")
     
     if RADIO:
@@ -54,12 +55,64 @@ def startup():
 def shutdown():
     logging.debug("Shutting down components")
     if RADIO:
+        logging.debug("Shutting down RADIO")
         RADIO.stop()
 
 
 def parse_data(raw_data):
-    return raw_data
+    dataDict = {}
+    msgParts = raw_data.split("&")
+    for dat in msgParts:
+        dataParts = dat.split("=")
+        dataKey = dataParts[0]
+        dataVal = "=".join(dataParts[1:])
+        # Conditionally load the dataDictionary
+        if (dataKey == "O"):
+            dataDict['orientation'] = parseTelemStr_orientation(dataVal)
+        if (dataKey == "W"):
+            dataDict['wing'] = parseTelemStr_wing(dataVal)
+        if (dataKey == "G"):
+            dataDict['gps'] = parseTelemStr_gps(dataVal)
+        if (dataKey == "I"):
+            dataDict['image'] = parseTelemStr_image(dataVal)
+        if (dataKey == "M"):
+            dataDict['msg'] = parseTelemStr_msg(dataVal)
+    return dataDict
 
+###################################
+# TELEM PARSERS
+###################################
+def parseTelemStr_orientation(telemStr):
+    dataObj = {}
+    telemStrParts = telemStr.split("_")
+    dataObj['O_R'] = telemStrParts[0]
+    dataObj['O_P'] = telemStrParts[1]
+    dataObj['O_Y'] = telemStrParts[2]
+    return dataObj
+
+def parseTelemStr_wing(telemStr):
+    dataObj = {}
+    telemStrParts = telemStr.split("_")
+    dataObj['W_L'] = telemStrParts[0]
+    dataObj['W_R'] = telemStrParts[1]
+    return dataObj
+    
+def parseTelemStr_gps(telemStr):
+    dataObj = {}
+    telemStrParts = telemStr.split("_")
+    dataObj['G_LAT'] = telemStrParts[0]
+    dataObj['G_LON'] = telemStrParts[1]
+    dataObj['G_ALT'] = telemStrParts[2]
+    dataObj['G_QTY'] = telemStrParts[3]
+    return dataObj
+
+def parseTelemStr_image(telemStr):
+    dataObj = None
+    return dataObj
+
+def parseTelemStr_msg(telemStr):
+    dataObj = None
+    return dataObj
 
 #################################
 # Configure Logging for pySel
@@ -81,13 +134,16 @@ def createParser():
 # Data Handler
 #####################################
 def data_handler(data):
+    global CURRENT_TELEM, LAST_TELEM
     logging.debug("I received raw data: %s" % data)
     parsed_data = parse_data(data)
     logging.debug("Parsed data: %s" % parsed_data)
     if parsed_data:
         LAST_TELEM = parsed_data
-        with open(TELEMFILE) as telemFile:
-            telemFile.write(parsed_data)
+        CURRENT_TELEM.update(LAST_TELEM)
+    with open(TELEMFILE, "a") as telemFile:
+        telemFile.write(data)
+    logging.debug("Current Telem: %s" % json.dumps(CURRENT_TELEM, indent=2))
 
 
 #####################################
@@ -114,15 +170,7 @@ class MainHandler(tornado.web.RequestHandler):
 class TelemHandler(tornado.web.RequestHandler):
     def get(self):
         millis = time.time() * 10
-        telem = {
-            "lat": (53.2769317 + math.cos(millis)*.0001),
-            "lon": (-6.2179775 + math.cos(millis)*.005),
-            "alt": (20000 + math.cos(millis)*100),
-            "O_P": math.cos(millis)*5, # 
-            "O_R": math.sin(millis)*3, # roll
-            "O_Y": math.sin(millis),
-        }
-        self.write(json.dumps(telem))
+        self.write(json.dumps(CURRENT_TELEM))
 
 def runWebServer():
     applicaton = Application()
@@ -144,7 +192,7 @@ def main():
     signal.signal(signal.SIGINT, signal_handler_quit) # Manage Ctrl+C
     configureLogging(loglevel)
 
-    startup()
+    startup(xbee_path)
     runWebServer()
     sys.exit(0)
 

@@ -9,11 +9,15 @@ import logging
 import datetime, time
 
 import glider_ATMegaController as controller
+
+from glider_imu import IMU
 from glider_gps import GPS_I2C
-from glider_radio import Transceiver
 from glider_pilot import Pilot
+from glider_radio import Transceiver
+from glider_telem import TelemetryHandler
 
 import RPi.GPIO as GPIO  
+
 # http://raspi.tv/2013/automatic-exposure-compensation-testing-for-the-pi-camera
 # http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 
@@ -22,6 +26,13 @@ LOG.setLevel(logging.WARN)
 
 ##############################################
 # ORIENTATION WAKE UP
+# wake up
+# aibpidbgpagd shake up
+# shake up
+# iopubadgaebadg make up
+# make up
+# ....
+# YOU WANTED TO!
 ##############################################
 # For some reason, if I put this in a function
 # it doesn't initialise correctly.. well it does
@@ -49,21 +60,28 @@ def dataHandler(packet):
         setOverrideState("_".join(data))
     if instruct == "PA":
         setPitchAngle(data[0])
+    if instruct == "TS":
+        setTurnSeverity(data[0])
     if instruct == "DEST":
         setDestination(data[0], data[1])
 
 
 ##########################################
+# GLOBAL COMPONENTS 
+##########################################
+IMU         = IMU(O_IMU)
+GPS         = GPS_I2C(fakeData='$GNGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*59')
+RADIO       = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
+PILOT       = Pilot(IMU, desired_pitch=math.radians(-10))
+TELEM       = TelemetryHandler(RADIO, IMU, PILOT, GPS)
+
+##########################################
 # GLOBALS
 ##########################################
-LED_RUNNING = 11
-STATE       = "OK"
-LAST_LOC    = {}
-GPS         = GPS_I2C(fakeData='$GNGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47')
-RADIO       = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
-PILOT       = Pilot(O_IMU, desired_pitch=0)
-
 OVERRIDE_STATE = None
+
+# --- LED ---
+LED_RUNNING = 11
 
 ##########################################
 # FUNCTIONS - UTILITY
@@ -75,19 +93,25 @@ def startUp():
     # Set up some flashy lights
     GPIO.setmode(GPIO.BOARD)  
     GPIO.setup(LED_RUNNING, GPIO.OUT)
+    # Start IMU sensor thread
+    IMU.start()
     # Start GPS thread
     GPS.start()
     # Start Radio thread
     RADIO.start()
     # Start the Pilot
     PILOT.start()
+    # Start the Telemetry handler
+    TELEM.start()
 
 
 def shutDown():
     LOG.info("Shutting down")
-    GPS.stop()
-    RADIO.stop()
+    TELEM.stop()
     PILOT.stop()
+    RADIO.stop()
+    GPS.stop()
+    IMU.stop()
 
 
 def alert(msg):
@@ -109,6 +133,13 @@ def setPitchAngle(newAngle):
     try:
         angle = math.radians(float(newAngle))
         PILOT.updatePitch(angle)
+    except Exception, e:
+        LOG.error(e)
+
+
+def setTurnSeverity(newSev):
+    try:
+        PILOT.updateTurnSev(newSev)
     except Exception, e:
         LOG.error(e)
 
@@ -147,30 +178,16 @@ def getLocation():
     return location
 
 
-def sendTelem(msg=""):
-    try:
-        orient = None
-        orient = "%02d %02d %02d" % (degrees(orient['yaw']), degrees(orient['pitch']), degrees(orient['roll']))
-        loc = "%s %s %s" % (LAST_LOC['latitude'], LAST_LOC['longitude'], LAST_LOC['altitude'])
-        dest = "%s %s" % (DEST_COORD[0], DEST_COORD[1])
-        battData = getBatteryStatus()
-        telemMsg = "%s::T:(%s)\nO:(%s)\nL(%s)\nD(%s)\nB(%s)\nC(%s)" % (msg, time.time(), orient, loc, dest, battData['level'], battData['temp'])
-        sendMessage(telemMsg)
-    except:
-        pass
-
-
 def sendMessage(msg):
-    RADIO.write(msg)
+    TELEM.setMessage(msg)
+
+
+def sendImage(img):
+    TELEM.setImage(img)
 
 
 def updatePilotLocation(location):
     PILOT.updateLocation(location['lat'], location['lon'])
-
-
-def getPilotWingCommand():
-    wingAngles = PILOT.get_servo_angles()
-    return wingAngles
 
 
 #################
@@ -195,7 +212,14 @@ def setWingAngle(angles):
     leftAngle = angles[0]
     rightAngle = angles[1]
     LOG.debug("Setting: %d %d" % (leftAngle, rightAngle))
-    controller.W_glider_command("W:%s:%s" % (leftAngle, rightAngle))
+    controller.W_glider_command("W:%2.2f:%2.2f" % (leftAngle, rightAngle))
+
+
+def updateWingAngles():
+    wingAngles = PILOT.get_servo_angles()
+    LOG.debug("Wing angles received: %s" % wingAngles)
+    if wingAngles:
+        setWingAngle(wingAngles)
 
 
 ########################
@@ -207,4 +231,3 @@ def releaseChord():
 
 def releaseParachute():
     controller.releaseChute()
-

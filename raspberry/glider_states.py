@@ -80,6 +80,7 @@ class healthCheck(gliderState):
         super(healthCheck, self).__init__()
         self.nextState = "ASCENT"
         self.checkedWings = False
+        self.sleepTime = 5
 
     def execute(self):
         glider_lib.center_wings()
@@ -92,9 +93,9 @@ class healthCheck(gliderState):
         batteryStatus = glider_lib.getBatteryStatus()
         batteryHealthy = batteryStatus.get("health")
         if not locationLocked:
-            LOG.error("Location is not locked yet")
+            LOG.warning("Location is not locked yet")
         elif not batteryHealthy:
-            LOG.error("Battery not healthy")
+            LOG.warning("Battery not healthy")
         else:
             # Seems all is good
             LOG.info("Health Check Passed")
@@ -103,15 +104,17 @@ class healthCheck(gliderState):
             self.readyToSwitch = True
     
     def wingCheck(self):
+        LOG.info("Moving wings")
+        wingMoveInterval = 0.2
         # Move the wings to max range
         glider_lib.center_wings()
-        time.sleep(.5)
+        time.sleep(wingMoveInterval)
         glider_lib.min_wings()
-        time.sleep(.5)
+        time.sleep(wingMoveInterval)
         glider_lib.center_wings()
-        time.sleep(.5)
+        time.sleep(wingMoveInterval)
         glider_lib.max_wings()
-        time.sleep(.5)
+        time.sleep(wingMoveInterval)
         glider_lib.center_wings()
         self.checkedWings = True
         
@@ -221,14 +224,12 @@ class glide(gliderState):
     def execute(self):
         # Get our new location
         self.location = glider_lib.getLocation()
-        LOG.error("Current Location: %s" % self.location)
+        LOG.info("Current Location: %s" % self.location)
         # Update the pilot
         glider_lib.updatePilotLocation(self.location)
-        wingAngles = glider_lib.getPilotWingCommand()
-        LOG.error("Wing angles received: %s" % wingAngles)
-        if wingAngles:
-            glider_lib.setWingAngle(wingAngles)
-
+        # Update the servos
+        glider_lib.updateWingAngles()
+        
     def switch(self):
         if (self.location and self.location['alt'] and 
                     self.location['alt'] < self.parachute_height):

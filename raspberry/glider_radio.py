@@ -30,9 +30,6 @@ class Transceiver():
         self.baud = baud
         self.xbee = None
         
-        self.telemInterval = telemInterval
-        self.telemString = None
-        
         self.openConn()
 
     def reset(self):
@@ -47,7 +44,7 @@ class Transceiver():
     def write(self, msg):
         msg = "%s*%s\n" % (msg, self.getChecksum(msg))
         try:
-            LOG.debug("Sending: '%s'" % msg)
+            LOG.debug("Sending: '%s'" % msg.rstrip())
             self.xbee.serial.write(msg)
             return True
         except Exception, e:
@@ -65,9 +62,6 @@ class Transceiver():
                 LOG.error(e)
                 LOG.error("Error while using serial path: %s. Retrying.." % self.serialPath)
                 time.sleep(1)
-
-    def setTelemString(self, newTelem):
-        self.telemString = newTelem
 
     def readLoop(self):
         while self.threadAlive:
@@ -89,22 +83,11 @@ class Transceiver():
             except Exception, e:
                 LOG.error(e)
 
-    def telemLoop(self):
-        while self.threadAlive:
-            try:
-                telem = self.telemString
-                self.write(telem)
-            except Exception, e:
-                LOG.error(e)
-
     def start(self):
         LOG.info("Starting RADIO thread")
         threadR = Thread( target=self.readLoop, args=() )
-        # Create telemetry loop in glider_lib, which uses this radio..
-        threadT = Thread( target=self.telemLoop, args=() )
         self.threadAlive = True
         threadR.start()
-        threadT.start()
 
     def stop(self):
         self.threadAlive = False

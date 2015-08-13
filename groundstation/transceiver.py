@@ -5,7 +5,7 @@
 #   Daniel Vagg 2015
 #
 ##############################################
-
+import traceback
 import log
 import time
 import serial
@@ -59,7 +59,7 @@ class Transceiver():
                 time.sleep(1)
 
     def readLoop(self):
-        while True:
+        while self.threadAlive:
             try:
                 msg = self.xbee.serial.readline()
                 msg = msg.rstrip() # Remove the newline part
@@ -75,8 +75,8 @@ class Transceiver():
                         self.datahandler(msgtxt)
                     else:
                         LOG.warning("Checksum mismatch (%s - %s) (%s)" % (calcsum, chksum, msg))
-            except Exception, e:
-                LOG.error(e)
+            except:
+                LOG.error(traceback.format_exc())
 
     def start(self):
         LOG.info("Starting RADIO thread")
