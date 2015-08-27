@@ -8,10 +8,16 @@ import logging
 import traceback
 import importlib
 
+print "Starting glider.."
+
 # Glider Imports
-import glider_lib
-import glider_schedule as schedule
-from glider_states import healthCheck, ascent, release, glide, parachute, recovery, errorState
+try:
+    import glider_lib
+    import glider_schedule as schedule
+    from glider_states import healthCheck, ascent, release, glide, parachute, recovery, errorState
+except:
+    print traceback.print_exc()
+    sys.exit(1)
 
 ##########################################
 # TODO

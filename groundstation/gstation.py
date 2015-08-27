@@ -141,6 +141,9 @@ def data_handler(data):
     if parsed_data:
         LAST_TELEM = parsed_data
         CURRENT_TELEM.update(LAST_TELEM)
+        
+        millis = time.time() * 10
+        CURRENT_TELEM.update({"wing": {"W_L": (millis+5) % 180, "W_R": (millis/2) %180}})
     with open(TELEMFILE, "a") as telemFile:
         telemFile.write(data)
     logging.debug("Current Telem: %s" % json.dumps(CURRENT_TELEM, indent=2))

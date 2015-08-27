@@ -86,6 +86,7 @@ class TelemetryHandler():
     def constructTelemetry(self):
         telemObj = {}
         # Create telemetry strings for all parts
+        telemObj["T"] = self.genTelemStr_timestamp()
         if self.checkIfSend("orientation"):
             telemObj["O"] = self.genTelemStr_orientation()
         if self.checkIfSend("wing"):
@@ -105,6 +106,10 @@ class TelemetryHandler():
 
     ######################################################################
     # Telemetry Generators
+    def genTelemStr_timestamp(self):
+        telStr = "%s" % int(round(time.time() * 1000))
+        return telStr
+        
     def genTelemStr_orientation(self):
         telStr = "%2.1f_%2.1f_%2.1f" % (
             math.degrees(self.imu.roll), 

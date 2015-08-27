@@ -41,7 +41,7 @@ SETTINGS_FILE = "RTIMULib"
 s = RTIMU.Settings(SETTINGS_FILE)
 O_IMU = RTIMU.RTIMU(s)
 if (not O_IMU.IMUInit()):
-    sys.exit(1)
+    raise IOError("IMU not available!!")
 else:
     LOG.info("IMU Init Succeeded")
 

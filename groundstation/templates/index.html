@@ -11,6 +11,9 @@
           <li role="presentation" class="">
             <a href="#map" role="tab" id="map-tab" data-toggle="tab" aria-controls="map" aria-expanded="false">Map</a>
           </li>
+          <li role="presentation" class="">
+            <a href="#command" role="tab" id="command-tab" data-toggle="tab" aria-controls="command" aria-expanded="false">Command</a>
+          </li>
         </ul>
 
         <div id="gliderTabContent" class="tab-content">
@@ -22,6 +25,10 @@
           <div role="tabpanel" class="tab-pane fade" id="map" aria-labelledby="map-tab">
             {% include "glider_map.html" %}
           </div>
+
+          <div role="tabpanel" class="tab-pane fade" id="command" aria-labelledby="command-tab">
+            {% include "glider_command.html" %}
+          </div>
           
         </div>
       </div>
@@ -30,11 +37,7 @@
 {% end %}
 
 {% block sidebar %}
-    <div class="row">
-      {% include "glider_wings.html" %}
-    </div>
-    
-    <div class="row">
       {% include "glider_telem.html" %}
-    </div>
+    
+      {% include "glider_wings.html" %}
 {% end %}

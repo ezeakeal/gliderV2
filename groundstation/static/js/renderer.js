@@ -105,19 +105,7 @@ function onWindowResize() {
 
 function animate() {
     requestAnimationFrame( animate );
-    $.ajax({
-        url: "getTelem",
-        data: {
-        },
-        success: function(telemRes){
-            telemJSON =  JSON.parse(telemRes);
-            window.handleTelemetry(telemJSON);
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-            console.log(xhr.status);
-            console.log(thrownError);
-        },
-    });
+    render(TELEMETRY); // TELEMETRY is global
     stats.update();
 }
 
