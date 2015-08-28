@@ -1,5 +1,6 @@
 
 $(document).ready(function () {
+    check_alert();
     init();
     setupWings();
     setTelemRequest();
@@ -28,7 +29,7 @@ function setTelemRequest(){
                 console.log(thrownError);
             },
         });
-    }, 10);
+    }, 20);
 }
 
 function setupWings(){
@@ -54,7 +55,8 @@ function renderTelemetry(telemJSON){
 
     // Update wing angles
     $('.dial').each(function(){
-        $(this).val($(this).html()).trigger('change');
+        var ang = $(this).text();
+        $(this).val(ang).trigger('change');
     })
     
 }
@@ -62,4 +64,18 @@ function renderTelemetry(telemJSON){
 function handleTelemetry(telemJSON){
     renderTelemetry(telemJSON)
     updateMarker(telemJSON);
+}
+
+function check_alert(){
+    var message = getParameterByName('msg');
+    $.notify({
+        'message': message
+    });
+}
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
 }

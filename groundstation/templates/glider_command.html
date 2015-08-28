@@ -1,3 +1,66 @@
 <div>
-    Command window
+
+    <div class="row">
+        <h4>Pitch adjust</h4>
+        <form role="form" class="form-inline" action="/postCommand" method="post">
+            <div class="form-group">
+                <label for="pitch">Desired Pitch</label>
+                <input type="number" max="0" min="-90" class="form-control" name="pitch" id="pitch" placeholder="-10">
+            </div>
+            <button type="submit" id="pitch_submit" class="btn btn-primary">Update pitch</button>
+        </form>
+    </div>
+
+    <hr/>
+    
+    <div class="row">
+        <h4>State change</h4>
+        <form role="form" class="form-inline" action="/postCommand" method="post">
+            <div class="form-group">
+                <label for="pitch">New State</label>
+                <select class="form-control" name="state" id="state">
+                    <option>HEALTH_CHECK</option>
+                    <option>ASCENT</option>
+                    <option>RELEASE</option>
+                    <option>FLIGHT</option>
+                    <option>PARACHUTE</option>
+                    <option>RECOVER</option>
+                </select>
+            </div>
+            <button type="submit" id="state_submit" class="btn btn-primary">Update state</button>
+        </form>
+    </div>
+
+<hr/>
+    
+    <div class="row">
+        <h4>Update turn severity</h4>
+        <form role="form" class="form-inline" action="/postCommand" method="post">
+            <div class="form-group">
+                <label for="pitch">New severity</label>
+                <input type="number" min=".1" max="5" class="form-control" name="severity" id="severity" placeholder="1">
+            </div>
+            <button type="submit" id="state_submit" class="btn btn-primary">Update severity</button>
+        </form>
+    </div>
+
+<hr/>
+    
+    <div class="row">
+        <h4>Update destination</h4>
+        <form role="form" class="form-inline" action="/postCommand" method="post">
+            <div class="form-group">
+                <label for="pitch">Longitude</label>
+                <input type="number" class="form-control" name="lon" id="lon">
+            </div>
+            <div class="form-group">
+                <label for="pitch">Lattitude</label>
+                <input type="number" class="form-control" name="lat" id="lat">
+            </div>
+            <button type="submit" id="state_submit" class="btn btn-primary">Update destination</button>
+        </form>
+    </div>
+
+<hr/>
+
 </div>
