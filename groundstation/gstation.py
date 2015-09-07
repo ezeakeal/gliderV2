@@ -56,7 +56,7 @@ def startup(xbee_path):
 
 def shutdown():
     logging.debug("Shutting down components")
-    if RADIO and not dryrun:
+    if RADIO and not DRYRUN:
         logging.debug("Shutting down RADIO")
         RADIO.stop()
 

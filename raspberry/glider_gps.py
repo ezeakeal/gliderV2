@@ -10,13 +10,14 @@ from threading import Thread
 # http://ava.upuaut.net/?p=768
 
 LOG = log.setup_custom_logger("GPS")
-LOG.setLevel(logging.WARN)
+LOG.setLevel(logging.DEBUG)
 
 class GPS_I2C(object):
     """
     GPS class using I2C comms with Blox-M8
     """
-    def __init__(self, address=0x42, gpsReadInterval=0.1, busChannel=1, fakeData=False):
+    def __init__(self, lock=None, address=0x42, gpsReadInterval=30, busChannel=1, fakeData=False):
+        self.lock = lock
         self.address = address
         self.gps_read_interval = gpsReadInterval
         self.bus_channel = busChannel
@@ -51,25 +52,28 @@ class GPS_I2C(object):
         c = None
         response = []
         try:
-            while True:
-                c = self.bus.read_byte(self.address)
-                if c == 255: # badchar
-                    return False # something has gone wrong
-                elif c == 10: # newline
-                    break # Stop now, and go parse something
+            if self.lock.lock():
+                while True:
+                    c = self.bus.read_byte(self.address)
+                    if c == 255: # badchar
+                        return False # something has gone wrong
+                    elif c == 10: # newline
+                        break # Stop now, and go parse something
+                    else:
+                        response.append(c)
+                if self.parseResponse(response):
+                    LOG.info("GPS has been parsed successfully")
                 else:
-                    response.append(c)
-            if self.parseResponse(response):
-                LOG.info("GPS has been parsed successfully")
-            else:
-                LOG.warning("GPS was received, but invalid")
-                LOG.info("".join(chr(x) for x in response))
+                    LOG.warning("GPS was received, but invalid")
+                    LOG.info("".join(chr(x) for x in response))
         except IOError:
             LOG.warning("Bus got IOError, reconnecting")
             time.sleep(0.5)
             self.connectBus()
         except Exception, e:
             LOG.error(e)
+        finally:
+            self.lock.unlock()
 
     def parseResponse(self, gpsLine):
         try:

@@ -24,26 +24,37 @@ import RPi.GPIO as GPIO
 LOG = log.setup_custom_logger('glider_lib')
 LOG.setLevel(logging.WARN)
 
-##############################################
-# ORIENTATION WAKE UP
-# wake up
-# aibpidbgpagd shake up
-# shake up
-# iopubadgaebadg make up
-# make up
-# ....
-# YOU WANTED TO!
-##############################################
-# For some reason, if I put this in a function
-# it doesn't initialise correctly.. well it does
-# but I can't read anything from it after!
-SETTINGS_FILE = "RTIMULib"
-s = RTIMU.Settings(SETTINGS_FILE)
-O_IMU = RTIMU.RTIMU(s)
-if (not O_IMU.IMUInit()):
-    raise IOError("IMU not available!!")
-else:
-    LOG.info("IMU Init Succeeded")
+
+##########################################
+# CLASS - I2C bus locker
+# Reading GPS data while reading IMU data
+# causes a data shiticane
+##########################################
+class I2C_LOCK(object):
+    def __init__(self):
+        self.locked = False
+
+    def lock(self):
+        LOG.debug("Locking I2C")
+        if not self.locked:
+            self.locked = True
+            return True
+        else:
+            LOG.warning("Attempted to lock I2C but already locked")
+            return False
+
+    def unlock(self):
+        LOG.debug("Unlocking I2C")
+        if self.locked:
+            self.locked = False
+            return True
+        else:
+            LOG.warning("Attempted to unlock I2C but already unlocked")
+            return False
+
+    def get_locked(self):
+        LOG.debug("Returning lock status: %s" % self.locked)
+        return self.locked
 
 
 ##########################################
@@ -69,11 +80,22 @@ def dataHandler(packet):
 ##########################################
 # GLOBAL COMPONENTS 
 ##########################################
-IMU         = IMU(O_IMU)
-GPS         = GPS_I2C(fakeData='$GNGGA,123519,5327.344,N,00777.830,E,1,08,0.9,545.4,M,46.9,M,,*57')
+##############################################
+# ORIENTATION WAKE UP
+# wake up
+# aibpidbgpagd shake up
+# shake up
+# iopubadgaebadg make up
+# make up
+# ....
+# YOU WANTED TO!
+##############################################
+LOCK        = I2C_LOCK() # Allows GPS to lock I2C bus 
+ORIENT      = IMU(lock=LOCK)
+GPS         = GPS_I2C(lock=LOCK, fakeData='$GNGGA,123519,5327.344,N,00777.830,E,1,08,0.9,545.4,M,46.9,M,,*57')
 RADIO       = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
-PILOT       = Pilot(IMU, desired_pitch=math.radians(-10))
-TELEM       = TelemetryHandler(RADIO, IMU, PILOT, GPS)
+PILOT       = Pilot(ORIENT, desired_pitch=math.radians(-10))
+TELEM       = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
 
 ##########################################
 # GLOBALS
@@ -93,8 +115,8 @@ def startUp():
     # Set up some flashy lights
     GPIO.setmode(GPIO.BOARD)  
     GPIO.setup(LED_RUNNING, GPIO.OUT)
-    # Start IMU sensor thread
-    IMU.start()
+    # Start ORIENT sensor thread
+    ORIENT.start()
     # Start GPS thread
     GPS.start()
     # Start Radio thread
@@ -111,7 +133,7 @@ def shutDown():
     PILOT.stop()
     RADIO.stop()
     GPS.stop()
-    IMU.stop()
+    ORIENT.stop()
 
 
 def alert(msg):

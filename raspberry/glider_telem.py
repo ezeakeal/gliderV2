@@ -9,6 +9,7 @@ import time
 import math
 import json
 import logging
+import traceback
 from threading import Thread
 
 # GUIDE
@@ -153,8 +154,8 @@ class TelemetryHandler():
                 LOG.debug("Created telemetry: %s" % telemString)
                 self.radio.write(telemString)
                 LOG.debug("TelemConst: %s" % json.dumps(self.telemConstructor, indent=2))
-            except Exception, e:
-                LOG.error(e)
+            except:
+                LOG.error(traceback.format_exc())
             time.sleep(self.broadcast_interval)
 
     def start(self):

@@ -1,42 +1,45 @@
 import log
 import time
 import math
+import RTIMU
 import logging
+import traceback
 from threading import Thread
 
 ##############################################
 # GLOBALS
 ##############################################
 LOG = log.setup_custom_logger('imu')
-LOG.setLevel(logging.WARN)
+LOG.setLevel(logging.DEBUG)
 
+SETTINGS_FILE = "RTIMULib"
+s = RTIMU.Settings(SETTINGS_FILE)
+imu = RTIMU.RTIMU(s)
 
 class IMU(object):
     """
     IMU class for obtaining orientation data
     """
 
-    def __init__(self, O_IMU):
-        self.O_IMU = O_IMU
-        self.threadAlive = False
-        self.configureOrientationChip()
+    def __init__(self, lock=None):
+        self.O_IMU = imu
+        self.lock = lock
         
+        self.imu_reset_interval = 5000
+        self.threadAlive = False
         self.roll = 0
         self.pitch = 0
         self.yaw = 0
+
+        self.imu_init()
         
-        self.poll_interval = self.getOrientPollInterval()
-
-    def getOrientPollInterval(self):
-        poll_interval = self.O_IMU.IMUGetPollInterval()
-        LOG.info("Recommended Poll Interval: %dmS\n" % poll_interval)
-        return poll_interval
-
-    def configureOrientationChip(self):
+    def imu_init(self):
         self.O_IMU.setSlerpPower(0.02)
         self.O_IMU.setGyroEnable(True)
         self.O_IMU.setAccelEnable(True)
         self.O_IMU.setCompassEnable(True)
+        self.poll_interval = self.O_IMU.IMUGetPollInterval()
+        LOG.info("Recommended Poll Interval: %dmS\n" % self.poll_interval)
 
     def start(self):
         sensorThread = Thread( target=self.updateOrientation, args=() )
@@ -48,15 +51,28 @@ class IMU(object):
         self.threadAlive = False
 
     def updateOrientation(self):
+        time_reset = 0
+        time_last = 0
         while self.threadAlive:
-            if self.O_IMU.IMURead():
-                data = self.O_IMU.getIMUData()
-                fusionPose = data["fusionPose"]
-                ######## NOTE: THIS MUST BE INSPECTED! CHECK THIS IS RIGHT!
-                self.roll = fusionPose[1]
-                self.pitch = fusionPose[0]
-                self.yaw = fusionPose[2]
-                LOG.debug("r: %f p: %f y: %f" % (
-                    math.degrees(self.roll), math.degrees(self.pitch), math.degrees(self.yaw))
-                )
-            time.sleep(self.poll_interval*1.0/1000.0)
+            time_now = time.time() * 1000
+
+            if (time_now - time_reset > self.imu_reset_interval):
+                time_reset = time_now
+                self.O_IMU.IMUInit()
+                self.O_IMU.resetFusion()
+                
+            while self.lock.get_locked():
+                LOG.info("Waiting for unlock")
+                time.sleep(0.1) # Wait for it to unlock
+            
+            if (time_now - time_last > self.poll_interval):
+                time_last = time_now
+                if self.O_IMU.IMURead():
+                    p,r,y = self.O_IMU.getFusionData()
+                    self.pitch = p
+                    self.roll = r
+                    self.yaw = y
+                    LOG.debug("p: %f r: %f y: %f" % (
+                        math.degrees(p), math.degrees(r), math.degrees(y))
+                    )
+            time.sleep(1.0/1000.0)
