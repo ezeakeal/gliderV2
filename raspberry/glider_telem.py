@@ -1,8 +1,8 @@
 ##############################################
 #
-# GliderV2 Client Software 
+# GliderV2 Client Software
 # Author: Daniel Vagg
-# 
+#
 ##############################################
 import log
 import time
@@ -21,10 +21,12 @@ from threading import Thread
 LOG = log.setup_custom_logger('telemetry')
 LOG.setLevel(logging.WARN)
 
+
 class TelemetryHandler():
+
     def __init__(self, radio, imu, pilot, gps):
         self.threadAlive = True
-        
+
         self.radio = radio
         self.imu = imu
         self.pilot = pilot
@@ -52,7 +54,8 @@ class TelemetryHandler():
                 "last_sent": 0
             },
             "image": {
-                "interval": 0, # use 0 to send data if it exists, every chance you get
+                # use 0 to send data if it exists, every chance you get
+                "interval": 0,
                 "last_sent": 0
             },
             "msg": {
@@ -61,10 +64,8 @@ class TelemetryHandler():
             }
         }
 
-
     def setMessage(self, msg):
         self.message += msg
-
 
     def setImage(self, img):
         if self.image == "":
@@ -72,17 +73,16 @@ class TelemetryHandler():
         else:
             LOG.error("image set before finished broadcasting")
 
-
     def checkIfSend(self, telConsKey):
         timeNow = time.time()
         # Determine if it should be sent
-        timeSinceSent = timeNow - self.telemConstructor[telConsKey]['last_sent']
+        timeSinceSent = timeNow - \
+            self.telemConstructor[telConsKey]['last_sent']
         send = timeSinceSent > self.telemConstructor[telConsKey]['interval']
         # Reset last sent, if send is true
         if send:
             self.telemConstructor[telConsKey]['last_sent'] = timeNow
         return send
-
 
     def constructTelemetry(self):
         telemObj = {}
@@ -104,33 +104,35 @@ class TelemetryHandler():
             telemStr += "%s=%s&" % (k, telemObj[k])
         return telemStr
 
-
     ######################################################################
     # Telemetry Generators
     def genTelemStr_timestamp(self):
         telStr = "%s" % int(round(time.time() * 1000))
         return telStr
-        
+
     def genTelemStr_orientation(self):
         telStr = "%2.1f_%2.1f_%2.1f" % (
-            math.degrees(self.imu.roll), 
-            math.degrees(self.imu.pitch), 
+            math.degrees(self.imu.roll),
+            math.degrees(self.imu.pitch),
             math.degrees(self.imu.yaw))
         return telStr
 
     def genTelemStr_wing(self):
         telStr = "%2.1f_%2.1f" % (
-            self.pilot.wing_param['left']['current'], 
+            self.pilot.wing_param['left']['current'],
             self.pilot.wing_param['right']['current'])
         return telStr
 
     def genTelemStr_gps(self):
-        telStr = "%s_%s_%s_%s" % (
-            float(self.gps.gps_data['lat'])/100, 
-            float(self.gps.gps_data['lon'])/(-100), 
-            self.gps.gps_data['alt'], 
-            self.gps.gps_data['fixQual'],
-        )
+        try:
+            telStr = "%s_%s_%s_%s" % (
+                float(self.gps.gps_data.get('lat', 0)) / 100,
+                float(self.gps.gps_data.get('lon', 0)) / (-100),
+                self.gps.gps_data.get('alt', 0),
+                self.gps.gps_data.get('fixQual', 0),
+            )
+        except:
+            telStr = ""
         return telStr
 
     def genTelemStr_image(self):
@@ -140,12 +142,12 @@ class TelemetryHandler():
     def genTelemStr_msg(self):
         telStr = ""
         if self.message:
-            telStr = self.message[:50] # enforce some length on it.. though it shouldn't be a problem
+            # enforce some length on it.. though it shouldn't be a problem
+            telStr = self.message[:50]
             self.message = ""
         return telStr
     # END --------
     ######################################################################
-
 
     def telemLoop(self):
         while self.threadAlive:
@@ -153,14 +155,15 @@ class TelemetryHandler():
                 telemString = self.constructTelemetry()
                 LOG.debug("Created telemetry: %s" % telemString)
                 self.radio.write(telemString)
-                LOG.debug("TelemConst: %s" % json.dumps(self.telemConstructor, indent=2))
+                LOG.debug("TelemConst: %s" %
+                          json.dumps(self.telemConstructor, indent=2))
             except:
                 LOG.error(traceback.format_exc())
             time.sleep(self.broadcast_interval)
 
     def start(self):
         LOG.info("Starting Telemetry thread")
-        threadT = Thread( target=self.telemLoop, args=() )
+        threadT = Thread(target=self.telemLoop, args=())
         self.threadAlive = True
         threadT.start()
 

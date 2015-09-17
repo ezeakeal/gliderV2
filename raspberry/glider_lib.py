@@ -6,7 +6,8 @@ import types
 import RTIMU
 import serial
 import logging
-import datetime, time
+import datetime
+import time
 
 import glider_ATMegaController as controller
 
@@ -16,45 +17,13 @@ from glider_pilot import Pilot
 from glider_radio import Transceiver
 from glider_telem import TelemetryHandler
 
-import RPi.GPIO as GPIO  
+import RPi.GPIO as GPIO
 
 # http://raspi.tv/2013/automatic-exposure-compensation-testing-for-the-pi-camera
 # http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 
 LOG = log.setup_custom_logger('glider_lib')
 LOG.setLevel(logging.WARN)
-
-
-##########################################
-# CLASS - I2C bus locker
-# Reading GPS data while reading IMU data
-# causes a data shiticane
-##########################################
-class I2C_LOCK(object):
-    def __init__(self):
-        self.locked = False
-
-    def lock(self):
-        LOG.debug("Locking I2C")
-        if not self.locked:
-            self.locked = True
-            return True
-        else:
-            LOG.warning("Attempted to lock I2C but already locked")
-            return False
-
-    def unlock(self):
-        LOG.debug("Unlocking I2C")
-        if self.locked:
-            self.locked = False
-            return True
-        else:
-            LOG.warning("Attempted to unlock I2C but already unlocked")
-            return False
-
-    def get_locked(self):
-        LOG.debug("Returning lock status: %s" % self.locked)
-        return self.locked
 
 
 ##########################################
@@ -78,7 +47,7 @@ def dataHandler(packet):
 
 
 ##########################################
-# GLOBAL COMPONENTS 
+# GLOBAL COMPONENTS
 ##########################################
 ##############################################
 # ORIENTATION WAKE UP
@@ -90,12 +59,12 @@ def dataHandler(packet):
 # ....
 # YOU WANTED TO!
 ##############################################
-LOCK        = I2C_LOCK() # Allows GPS to lock I2C bus 
-ORIENT      = IMU(lock=LOCK)
-GPS         = GPS_I2C(lock=LOCK, fakeData='$GNGGA,123519,5327.344,N,00777.830,E,1,08,0.9,545.4,M,46.9,M,,*57')
-RADIO       = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
-PILOT       = Pilot(ORIENT, desired_pitch=math.radians(-10))
-TELEM       = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
+ORIENT = IMU()
+GPS = GPS_I2C(
+    fakeData='$GNGGA,123519,5327.344,N,00777.830,E,1,08,0.9,545.4,M,46.9,M,,*57')
+RADIO = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
+PILOT = Pilot(ORIENT, desired_pitch=math.radians(-10))
+TELEM = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
 
 ##########################################
 # GLOBALS
@@ -108,12 +77,14 @@ LED_RUNNING = 11
 ##########################################
 # FUNCTIONS - UTILITY
 ##########################################
+
+
 def startUp():
     LOG.info("Starting up")
     # Reset the SPI interface for some reason..
     controller.reset_spi()
     # Set up some flashy lights
-    GPIO.setmode(GPIO.BOARD)  
+    GPIO.setmode(GPIO.BOARD)
     GPIO.setup(LED_RUNNING, GPIO.OUT)
     # Start ORIENT sensor thread
     ORIENT.start()
@@ -149,7 +120,7 @@ def setOverrideState(newstate):
     global OVERRIDE_STATE
     LOG.info("Setting override state: %s" % newstate)
     OVERRIDE_STATE = newstate
- 
+
 
 def setPitchAngle(newAngle):
     try:
@@ -179,9 +150,9 @@ def speak(text):
 ##########################################
 def getBatteryStatus():
     status = {
-        "health":True, 
-        "level":None, 
-        "temp":None
+        "health": True,
+        "level": None,
+        "temp": None
     }
     return status
 
@@ -213,13 +184,13 @@ def center_wings():
 
 def min_wings():
     lcenter, rcenter, servoRange = PILOT.getWingCenterAndRange()
-    setWingAngle([lcenter-servoRange, rcenter-servoRange])
+    setWingAngle([lcenter - servoRange, rcenter - servoRange])
 
 
 def max_wings():
     lcenter, rcenter, servoRange = PILOT.getWingCenterAndRange()
-    setWingAngle([lcenter+servoRange, rcenter+servoRange])
-    
+    setWingAngle([lcenter + servoRange, rcenter + servoRange])
+
 
 def setWingAngle(angles):
     leftAngle = angles[0]

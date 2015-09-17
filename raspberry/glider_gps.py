@@ -12,12 +12,14 @@ from threading import Thread
 LOG = log.setup_custom_logger("GPS")
 LOG.setLevel(logging.DEBUG)
 
+
 class GPS_I2C(object):
+
     """
     GPS class using I2C comms with Blox-M8
     """
-    def __init__(self, lock=None, address=0x42, gpsReadInterval=30, busChannel=1, fakeData=False):
-        self.lock = lock
+
+    def __init__(self, address=0x42, gpsReadInterval=30, busChannel=1, fakeData=False):
         self.address = address
         self.gps_read_interval = gpsReadInterval
         self.bus_channel = busChannel
@@ -52,28 +54,25 @@ class GPS_I2C(object):
         c = None
         response = []
         try:
-            if self.lock.lock():
-                while True:
-                    c = self.bus.read_byte(self.address)
-                    if c == 255: # badchar
-                        return False # something has gone wrong
-                    elif c == 10: # newline
-                        break # Stop now, and go parse something
-                    else:
-                        response.append(c)
-                if self.parseResponse(response):
-                    LOG.info("GPS has been parsed successfully")
+            while True:
+                c = self.bus.read_byte(self.address)
+                if c == 255:  # badchar
+                    return False  # something has gone wrong
+                elif c == 10:  # newline
+                    break  # Stop now, and go parse something
                 else:
-                    LOG.warning("GPS was received, but invalid")
-                    LOG.info("".join(chr(x) for x in response))
+                    response.append(c)
+            if self.parseResponse(response):
+                LOG.info("GPS has been parsed successfully")
+            else:
+                LOG.warning("GPS was received, but invalid")
+                LOG.info("".join(chr(x) for x in response))
         except IOError:
             LOG.warning("Bus got IOError, reconnecting")
             time.sleep(0.5)
             self.connectBus()
         except Exception, e:
             LOG.error(e)
-        finally:
-            self.lock.unlock()
 
     def parseResponse(self, gpsLine):
         try:
@@ -83,7 +82,8 @@ class GPS_I2C(object):
                 gpsChars = ''.join(chr(c) for c in gpsLine)
             # Look for the Checksum
             if "*" not in gpsChars:
-                return False # We need to find this char to get the chksum val..
+                # We need to find this char to get the chksum val..
+                return False
             # Split up GPS components
             gpsStr, chkSum = gpsChars.split('*')
             gpsComponents = gpsStr.split(',')
@@ -91,20 +91,21 @@ class GPS_I2C(object):
             # Read in the GPS data
             if (gpsStart == "$GNGGA"):
                 chkVal = 0
-                for ch in gpsStr[1:]: # Remove the $
+                for ch in gpsStr[1:]:  # Remove the $
                     chkVal ^= ord(ch)
                 if (chkVal == int(chkSum, 16)):
                     # Seems the checksum is good
                     for i, k in enumerate(
                         ['strType', 'fixTime',
-                        'lat', 'latDir', 'lon', 'lonDir',
-                        'fixQual', 'numSat', 'horDil',
-                        'alt', 'altUnit', 'galt', 'galtUnit',
-                        'DPGS_updt', 'DPGS_ID']):
+                         'lat', 'latDir', 'lon', 'lonDir',
+                         'fixQual', 'numSat', 'horDil',
+                         'alt', 'altUnit', 'galt', 'galtUnit',
+                         'DPGS_updt', 'DPGS_ID']):
                         self.gps_data[k] = gpsComponents[i]
                     return True
                 else:
-                    LOG.warning("Bad checksum in GPS datastring (%s != %s)" % (chkVal, int(chkSum, 16)))
+                    LOG.warning(
+                        "Bad checksum in GPS datastring (%s != %s)" % (chkVal, int(chkSum, 16)))
                     return False
         except:
             LOG.error(traceback.format_exc())
@@ -116,7 +117,7 @@ class GPS_I2C(object):
 
     def start(self):
         LOG.info("Starting GPS thread")
-        readThread = Thread( target=self.readLoop, args=() )
+        readThread = Thread(target=self.readLoop, args=())
         self.threadAlive = True
         readThread.start()
 
