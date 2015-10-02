@@ -3,7 +3,15 @@ $(document).ready(function () {
     check_alert();
     init();
     setupWings();
-    setTelemRequest();
+
+    if (window.WebSocket){
+         console.log("WebSockets: Supported");
+         setTelemSocket();
+    } else {
+         console.err("WebSockets: Not Supported");
+         setTelemAjax();
+    }
+    
     animate();
     hookMapUpdateTimer();
     $('#gliderTabs').click(function(){
@@ -15,14 +23,12 @@ $(document).ready(function () {
 
 TELEMETRY = {}
 
-function setTelemRequest(){
+function setTelemAjax(){
     setInterval(function(){
         $.ajax({
             url: "getTelem",
-            success: function(telemRes){
-                telemJSON =  JSON.parse(telemRes);
-                TELEMETRY = telemJSON;
-                window.handleTelemetry(TELEMETRY);
+            success: function(telemData){
+                parseTelemetryData(telemData);
             },
             error: function (xhr, ajaxOptions, thrownError) {
                 console.log(xhr.status);
@@ -30,6 +36,22 @@ function setTelemRequest(){
             },
         });
     }, 20);
+}
+
+function setTelemSocket(){
+    console.log("Creating websocket")    
+    var ws = new WebSocket("ws://localhost:8888/getTelemSocket");
+
+    ws.onmessage = function(event) {
+        parseTelemetryData(event.data);
+        console.log(event.data);
+    }
+}
+
+function parseTelemetryData(telemData){
+    telemJSON =  JSON.parse(telemData);
+    TELEMETRY = telemJSON;
+    window.handleTelemetry(TELEMETRY);
 }
 
 function setupWings(){
