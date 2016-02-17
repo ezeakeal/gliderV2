@@ -23,7 +23,7 @@ import tornado.websocket
 import tornado.httpserver
 
 
-from transceiver import Transceiver
+from transceiver import Transceiver, DryTransceiver
 
 #####################################
 # GLOBALS
@@ -52,6 +52,9 @@ def startup(xbee_path):
     if not DRYRUN:
         RADIO = Transceiver(xbee_path, 9600, datahandler=data_handler)
         logging.debug("Created Radio instance")
+    else:
+        RADIO = DryTransceiver(datahandler=dry_data_handler)
+        logging.debug("Created Dry Radio instance")
 
     if RADIO:
         logging.debug("Starting up Radio")
@@ -195,8 +198,9 @@ def data_handler(data):
     logging.debug("Current Telem: %s" % json.dumps(CURRENT_TELEM, indent=2))
 
 
-def generateFakeTelem():
-    global CURRENT_TELEM
+def dry_data_handler():
+    global CURRENT_TELEM, LAST_TELEM
+
     millis = time.time()
     orientation = parseTelemStr_orientation("%s_%s_%s" % (
         math.sin(millis) * 10, math.cos(millis) * 5, math.cos(millis / 2)))
@@ -205,8 +209,21 @@ def generateFakeTelem():
     gps = parseTelemStr_gps("%s_%s_%s_%s" % (
         30 + math.sin(millis * 2), -7 + math.sin(millis / 2), math.sin(millis * 2) * 500, 1))
 
-    CURRENT_TELEM.update(
-        {"wing": wing, "gps": gps, "orientation": orientation})
+    logging.debug("Making fake telemtry")
+    LAST_TELEM = {
+        "wing": wing, 
+        "gps": gps, 
+        "orientation": orientation
+    }
+    CURRENT_TELEM.update(LAST_TELEM)
+    
+    for socket in SOCKETS:
+        socket.write_message(LAST_TELEM)
+
+    with open(TELEMFILE, "a") as telemFile:
+        telemFile.write(json.dumps(LAST_TELEM))
+    logging.debug("Current Telem: %s" % json.dumps(CURRENT_TELEM, indent=2))
+
 
 #####################################
 # WEB SERVER

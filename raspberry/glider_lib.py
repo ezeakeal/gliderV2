@@ -23,7 +23,7 @@ import RPi.GPIO as GPIO
 # http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 
 LOG = log.setup_custom_logger('glider_lib')
-LOG.setLevel(logging.WARN)
+LOG.setLevel(logging.DEBUG)
 
 
 ##########################################
@@ -86,8 +86,6 @@ def startUp():
     # Set up some flashy lights
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(LED_RUNNING, GPIO.OUT)
-    # Start ORIENT sensor thread
-    ORIENT.start()
     # Start GPS thread
     GPS.start()
     # Start Radio thread
@@ -96,7 +94,9 @@ def startUp():
     PILOT.start()
     # Start the Telemetry handler
     TELEM.start()
-
+    # Start ORIENT sensor thread
+    ORIENT.start()
+    
 
 def shutDown():
     LOG.info("Shutting down")

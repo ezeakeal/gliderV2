@@ -8,8 +8,7 @@ from threading import Thread
 # GLOBALS
 ##############################################
 LOG = log.setup_custom_logger('pilot')
-LOG.setLevel(logging.WARN)
-
+LOG.setLevel(logging.WARNING)
 
 class Pilot(object):
     """
@@ -189,7 +188,7 @@ class Pilot(object):
         wr = self.wing_param['right']['intended']
         cl = self.wing_param['left']['current']
         cr = self.wing_param['right']['current']
-        if (wl != cl) or (wr != cr):
+        if (wl != cl) or (wr != cr) or True:
             self.wing_param['left']['current'] = wl
             self.wing_param['right']['current'] = wr
             return [wl, wr]

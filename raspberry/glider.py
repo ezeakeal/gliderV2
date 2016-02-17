@@ -38,7 +38,7 @@ STATE_MACHINE = {
     "RECOVER"       : recovery(),
     "ERROR"         : errorState()
 }
-CURRENT_STATE = "HEALTH_CHECK"
+CURRENT_STATE = "FLIGHT"
 RUNNING = True
 
 ##########################################

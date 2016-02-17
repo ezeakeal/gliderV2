@@ -16,6 +16,7 @@ from threading import Thread
 LOG = log.setup_custom_logger('radio')
 LOG.setLevel(logging.DEBUG)
 
+
 class Transceiver():
     def __init__(self, serialPath, baud, timeout=.5, datahandler=None):
         self.datahandler = datahandler
@@ -91,5 +92,33 @@ class Transceiver():
         LOG.info("Closing Serial")
         self.xbee.serial.close()
 
+
+#---------- END CLASS -------------
+
+
+
+class DryTransceiver():
+    def __init__(self, timeout=.5, interval=0.02, datahandler=None):
+        self.datahandler = datahandler
+        self.readTimeout = timeout
+        self.threadAlive = True
+        self.interval = interval
+
+    def readLoop(self):
+        while self.threadAlive:
+            self.datahandler()
+            time.sleep(self.interval)
+
+    def start(self):
+        LOG.info("Starting RADIO thread")
+        thread = Thread( target=self.readLoop, args=() )
+        self.threadAlive = True
+        thread.start()
+
+    def stop(self):
+        self.threadAlive = False
+
+    def close(self):
+        LOG.info("Closing Dry Serial")
 
 #---------- END CLASS -------------

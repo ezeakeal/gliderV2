@@ -217,14 +217,15 @@ class glide(gliderState):
     def __init__(self):
         super(glide, self).__init__()
         self.nextState = "PARACHUTE"
-        self.parachute_height = 1500
+        self.parachute_height = -1500
         self.location = None
         self.sleepTime = 0.02
 
     def execute(self):
         # Get our new location
+        LOG.debug("Figuring out location")
         self.location = glider_lib.getLocation()
-        LOG.info("Current Location: %s" % self.location)
+        LOG.debug("Current Location: %s" % self.location)
         # Update the pilot
         glider_lib.updatePilotLocation(self.location)
         # Update the servos
@@ -232,7 +233,7 @@ class glide(gliderState):
         
     def switch(self):
         if (self.location and self.location['alt'] and 
-                    self.location['alt'] < self.parachute_height):
+            self.location['alt'] < self.parachute_height):
             self.readyToSwitch = True
         super(glide, self).switch()
 
