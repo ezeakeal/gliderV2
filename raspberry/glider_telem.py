@@ -125,11 +125,11 @@ class TelemetryHandler():
 
     def genTelemStr_gps(self):
         try:
-            telStr = "%s_%s_%s_%s" % (
-                float(self.gps.gps_data.get('lat', 0)) / 100,
-                float(self.gps.gps_data.get('lon', 0)) / (-100),
-                self.gps.gps_data.get('alt', 0),
-                self.gps.gps_data.get('fixQual', 0),
+            data = self.gps.gpsd
+            telStr = "%s_%s_%s" % (
+                float(data.fix.latitude) / 100,
+                float(data.fix.longitude) / (-100),
+                data.fix.altitude,
             )
         except:
             telStr = ""

@@ -36,7 +36,7 @@ void processData() {
   }
   
   if(strstr(command_buff, "D:")) {
-    angParachute = 0;
+    angDetach = 0;
   }
 
   if(strstr(command_buff, "P:")) {

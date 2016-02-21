@@ -34,7 +34,7 @@ void setup() {
 void loop() {
   if (commandReady){
     processData();
-    Serial.print("Angles: ");
+    Serial.print("Servo Angles: ");
     Serial.print(angWingL);
     Serial.print(" ");
     Serial.print(angWingR);

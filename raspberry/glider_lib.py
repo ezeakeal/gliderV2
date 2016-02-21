@@ -1,13 +1,8 @@
-import sys
+import os
 import log
-import json
 import math
-import types
-import RTIMU
-import serial
 import logging
-import datetime
-import time
+import subprocess
 
 import glider_ATMegaController as controller
 
@@ -23,7 +18,7 @@ import RPi.GPIO as GPIO
 # http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 
 LOG = log.setup_custom_logger('glider_lib')
-LOG.setLevel(logging.DEBUG)
+LOG.setLevel(logging.WARNING)
 
 
 ##########################################
@@ -60,8 +55,7 @@ def dataHandler(packet):
 # YOU WANTED TO!
 ##############################################
 ORIENT = IMU()
-GPS = GPS_I2C(
-    fakeData='$GNGGA,123519,5327.344,N,00777.830,E,1,08,0.9,545.4,M,46.9,M,,*57')
+GPS = GPS_I2C()
 RADIO = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
 PILOT = Pilot(ORIENT, desired_pitch=math.radians(-10))
 TELEM = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
@@ -112,7 +106,7 @@ def alert(msg):
 
 
 def getOverrideState():
-    LOG.info("Returning state: %s" % OVERRIDE_STATE)
+    LOG.info("Returning override state: %s" % OVERRIDE_STATE)
     return OVERRIDE_STATE
 
 
@@ -141,8 +135,10 @@ def setDestination(lat, lon):
     PILOT.updateDestination(lat, lon)
 
 
-def speak(text):
+def speak(text, speed=150):
     LOG.info("Speaking %s" % text)
+    with open(os.devnull, "w") as devnull:
+        subprocess.Popen(["espeak", "-k10 -s%s" % (speed), text], stdout=devnull, stderr=devnull)
 
 
 ##########################################
@@ -210,8 +206,8 @@ def updateWingAngles():
 # Release Chute/Balloon
 ########################
 def releaseChord():
-    controller.release()
+    controller.W_glider_command("D:")
 
 
 def releaseParachute():
-    controller.releaseChute()
+    controller.W_glider_command("P:")

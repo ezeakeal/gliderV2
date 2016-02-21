@@ -27,7 +27,7 @@ except:
 # GLOBALS
 ##########################################
 LOG = log.setup_custom_logger('glider')
-LOG.setLevel(logging.WARN)
+LOG.setLevel(logging.WARNING)
 
 STATE_MACHINE = {
     "HEALTH_CHECK"  : healthCheck(),
@@ -38,7 +38,7 @@ STATE_MACHINE = {
     "RECOVER"       : recovery(),
     "ERROR"         : errorState()
 }
-CURRENT_STATE = "FLIGHT"
+CURRENT_STATE = "ASCENT"
 RUNNING = True
 
 ##########################################
@@ -73,13 +73,17 @@ def runGliderStateMachine():
             stateClass.rest()
             stateClass.execute()
             newState = stateClass.switch()
+            LOG.debug("Retrieved newState: %s" % newState)
             # Check if we need to override the state for any reason (this signal comes from groundstation)
-            if glider_lib.getOverrideState():
-                overrideState = glider_lib.getOverrideState()
+            overrideState = glider_lib.getOverrideState()
+            if overrideState:
+                LOG.debug("Override state: %s" % overrideState)
                 glider_lib.setOverrideState(None)
-                if overrideState in STATE_MACHINE.keys():
+                if overrideState and overrideState in STATE_MACHINE.keys():
                     newState = overrideState
+                    LOG.debug("Set override state: %s" % overrideState)
             # Switch in to new state
+            LOG.debug("New state: %s" % newState)
             if newState:
                 LOG.debug("State is being updated from (%s) to (%s)" % (
                     CURRENT_STATE, newState))
