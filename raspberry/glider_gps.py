@@ -1,11 +1,11 @@
+import os
 import log
-import sys
-import time
-import json
-import smbus
 import logging
-import traceback
+
+from gps import *
+from time import *
 from threading import Thread
+
 # GUIDE
 # http://ava.upuaut.net/?p=768
 
@@ -16,23 +16,23 @@ LOG.setLevel(logging.DEBUG)
 class GPS_USB(object):
 
     def __init__(self):
-        threading.Thread.__init__(self)
-        gpsd = gps(mode=WATCH_ENABLE) #starting the stream of info
-        self.current_value = None
-        self.running = True #setting the thread running to true
+        self.gpsd = gps(mode=WATCH_ENABLE) #starting the stream of info
+
+
+    def poll_gps(self):
+        while self.threadAlive:
+            self.gpsd.next() #this will continue to loop and grab EACH set of gpsd info to clear the buffer
+            LOG.debug("GPS data:")
+            LOG.debug('latitude     %s' % self.gpsd.fix.latitude)
+            LOG.debug('longitude    %s' % self.gpsd.fix.longitude)
+            LOG.debug('time utc     %s + %s' % (self.gpsd.utc, self.gpsd.fix.time))
+            LOG.debug('altitude (m) %s' % self.gpsd.fix.altitude)
  
 
-    def run(self):
-        global gpsd
-        while gpsp.running:
-            # this will continue to loop and grab EACH set of gpsd info to clear the buffer
-            gpsd.next()
-
-
     def start(self):
-        pilotThread = Thread( target=self.updateIntendWingAngle, args=() )
+        pilotThread = Thread( target=self.poll_gps, args=() )
         self.threadAlive = True
-        LOG.info("Starting up Pilot thread now")
+        LOG.info("Starting up GPS thread now")
         pilotThread.start()
 
 
@@ -40,5 +40,8 @@ class GPS_USB(object):
         self.threadAlive = False
 
 
-    def getData(self):
-        pass
+    def getFix(self):
+        return self.gpsd.fix
+
+    def getTime(self):
+        return self.gpsd.utc

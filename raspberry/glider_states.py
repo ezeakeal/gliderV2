@@ -121,7 +121,7 @@ class ascent(gliderState):
         self.ascent_nodes = []
         self.ascent_rates = []
         self.median_ascent_rate = 0
-        self.sleepTime = 10
+        self.sleepTime = 1
         self.minAltDelta = 500
         self.minRateCount = 10
         self.desiredAltitude = 22000
@@ -133,10 +133,12 @@ class ascent(gliderState):
         LOG.info("ASCENDING!")
         # Keep moving the wings to stop grease freezing in servos
         self.wing_angle_acc += .2
-        glider_lib.setWingAngle([
-            90 + 20*math.cos(self.wing_angle_acc),
-            96 + 20*math.cos(self.wing_angle_acc)
-        ])
+        wing_angles = [
+            90 + 10*math.cos(self.wing_angle_acc),
+            96 + 10*math.cos(self.wing_angle_acc)
+        ]
+        LOG.info("Setting wing angles: %s" % wing_angles)
+        glider_lib.setWingAngle(wing_angles)
         # Find the nodes we have hit on the way up
         lastNode = None
         if len(self.ascent_nodes) > 0:

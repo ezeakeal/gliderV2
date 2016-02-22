@@ -7,7 +7,7 @@ import subprocess
 import glider_ATMegaController as controller
 
 from glider_imu import IMU
-from glider_gps import GPS_I2C
+from glider_gps import GPS_USB
 from glider_pilot import Pilot
 from glider_radio import Transceiver
 from glider_telem import TelemetryHandler
@@ -55,7 +55,7 @@ def dataHandler(packet):
 # YOU WANTED TO!
 ##############################################
 ORIENT = IMU()
-GPS = GPS_I2C()
+GPS = GPS_USB()
 RADIO = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
 PILOT = Pilot(ORIENT, desired_pitch=math.radians(-10))
 TELEM = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
