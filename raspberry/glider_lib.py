@@ -1,6 +1,7 @@
 import os
 import log
 import math
+import glob
 import logging
 import subprocess
 
@@ -9,11 +10,11 @@ import glider_ATMegaController as controller
 from glider_imu import IMU
 from glider_gps import GPS_USB
 from glider_pilot import Pilot
-from glider_radio import Transceiver
 from glider_telem import TelemetryHandler
+from glider_camera import GliderCamera
+from sat_radio import SatRadio
 
 import RPi.GPIO as GPIO
-
 # http://raspi.tv/2013/automatic-exposure-compensation-testing-for-the-pi-camera
 # http://bytingidea.com/2014/12/11/raspberry-pi-powered-long-exposures/
 
@@ -54,9 +55,10 @@ def dataHandler(packet):
 # ....
 # YOU WANTED TO!
 ##############################################
-ORIENT = IMU()
 GPS = GPS_USB()
-RADIO = Transceiver("/dev/ttyAMA0", 9600, datahandler=dataHandler)
+ORIENT = IMU()
+CAMERA = GliderCamera()
+RADIO = SatRadio("/dev/ttyAMA0", "GliderV2", callback=dataHandler)
 PILOT = Pilot(ORIENT, desired_pitch=math.radians(-10))
 TELEM = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
 
@@ -82,23 +84,23 @@ def startUp():
     GPIO.setup(LED_RUNNING, GPIO.OUT)
     # Start GPS thread
     GPS.start()
-    # Start Radio thread
-    RADIO.start()
     # Start the Pilot
     PILOT.start()
     # Start the Telemetry handler
     TELEM.start()
     # Start ORIENT sensor thread
     ORIENT.start()
+    # Start Camera thread
+    CAMERA.start()
     
 
 def shutDown():
     LOG.info("Shutting down")
     TELEM.stop()
     PILOT.stop()
-    RADIO.stop()
     GPS.stop()
     ORIENT.stop()
+    CAMERA.stop()
 
 
 def alert(msg):
@@ -162,8 +164,9 @@ def sendMessage(msg):
     TELEM.setMessage(msg)
 
 
-def sendImage(img):
-    TELEM.setImage(img)
+def sendImage():
+    newest_image = max(glob.iglob('%s/low_*.jpg' % CAMERA.photo_path), key=os.path.getctime)
+    RADIO.sendImage(newest_image)
 
 
 def updatePilotLocation(location):
@@ -206,8 +209,10 @@ def updateWingAngles():
 # Release Chute/Balloon
 ########################
 def releaseChord():
+    CAMERA.take_video(15)
     controller.W_glider_command("D:")
 
 
 def releaseParachute():
+    CAMERA.take_video(15)
     controller.W_glider_command("P:")

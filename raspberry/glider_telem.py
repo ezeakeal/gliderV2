@@ -12,6 +12,7 @@ import logging
 import traceback
 from threading import Thread
 
+
 # GUIDE
 # http://ava.upuaut.net/?p=768
 
@@ -33,8 +34,7 @@ class TelemetryHandler():
         self.gps = gps
 
         self.message = ""
-        self.image = ""
-
+        
         self.broadcast_interval = 0.2
         self.telemConstructor = {
             "orientation": {
@@ -67,7 +67,7 @@ class TelemetryHandler():
     def setMessage(self, msg):
         self.message += msg
 
-    def setImage(self, img):
+    def sendImage(self, img):
         if self.image == "":
             self.image = img
         else:
@@ -94,15 +94,9 @@ class TelemetryHandler():
             telemObj["W"] = self.genTelemStr_wing()
         if self.checkIfSend("gps"):
             telemObj["G"] = self.genTelemStr_gps()
-        if self.checkIfSend("image"):
-            telemObj["I"] = self.genTelemStr_image()
         if self.checkIfSend("msg"):
             telemObj["M"] = self.genTelemStr_msg()
-        # Deconstruct the object to a string
-        telemStr = ""
-        for k in telemObj:
-            telemStr += "%s=%s&" % (k, telemObj[k])
-        return telemStr
+        return hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure
 
     ######################################################################
     # Telemetry Generators
@@ -135,10 +129,6 @@ class TelemetryHandler():
             telStr = ""
         return telStr
 
-    def genTelemStr_image(self):
-        telStr = ""
-        return telStr
-
     def genTelemStr_msg(self):
         telStr = ""
         if self.message:
@@ -152,11 +142,8 @@ class TelemetryHandler():
     def telemLoop(self):
         while self.threadAlive:
             try:
-                telemString = self.constructTelemetry()
-                LOG.debug("Created telemetry: %s" % telemString)
-                self.radio.write(telemString)
-                LOG.debug("TelemConst: %s" %
-                          json.dumps(self.telemConstructor, indent=2))
+                hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure = self.constructTelemetry()
+                self.radio.send_telem(hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure)
             except:
                 LOG.error(traceback.format_exc())
             time.sleep(self.broadcast_interval)
