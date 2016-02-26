@@ -32,121 +32,53 @@ class TelemetryHandler():
         self.imu = imu
         self.pilot = pilot
         self.gps = gps
-
-        self.message = ""
         
-        self.broadcast_interval = 0.2
-        self.telemConstructor = {
-            "orientation": {
-                "interval": 0,
-                "last_sent": 0
-            },
-            "wing": {
-                "interval": 0,
-                "last_sent": 0
-            },
-            "gps": {
-                "interval": 30,
-                "last_sent": 0
-            },
-            "completegps": {
-                "interval": 300,
-                "last_sent": 0
-            },
-            "image": {
-                # use 0 to send data if it exists, every chance you get
-                "interval": 0,
-                "last_sent": 0
-            },
-            "msg": {
-                "interval": 0,
-                "last_sent": 0
-            }
-        }
-
-    def setMessage(self, msg):
-        self.message += msg
-
-    def sendImage(self, img):
-        if self.image == "":
-            self.image = img
-        else:
-            LOG.error("image set before finished broadcasting")
-
-    def checkIfSend(self, telConsKey):
-        timeNow = time.time()
-        # Determine if it should be sent
-        timeSinceSent = timeNow - \
-            self.telemConstructor[telConsKey]['last_sent']
-        send = timeSinceSent > self.telemConstructor[telConsKey]['interval']
-        # Reset last sent, if send is true
-        if send:
-            self.telemConstructor[telConsKey]['last_sent'] = timeNow
-        return send
-
-    def constructTelemetry(self):
-        telemObj = {}
-        # Create telemetry strings for all parts
-        telemObj["T"] = self.genTelemStr_timestamp()
-        if self.checkIfSend("orientation"):
-            telemObj["O"] = self.genTelemStr_orientation()
-        if self.checkIfSend("wing"):
-            telemObj["W"] = self.genTelemStr_wing()
-        if self.checkIfSend("gps"):
-            telemObj["G"] = self.genTelemStr_gps()
-        if self.checkIfSend("msg"):
-            telemObj["M"] = self.genTelemStr_msg()
-        return hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure
-
-    ######################################################################
-    # Telemetry Generators
-    def genTelemStr_timestamp(self):
-        telStr = "%s" % int(round(time.time() * 1000))
-        return telStr
+        self.glider_data_interval = 0.2
+        self.glider_data_lastsent = time.time()
+        self.telemetry_interval = 60
+        self.telemetry_lastsent = time.time()
 
     def genTelemStr_orientation(self):
-        telStr = "%2.1f_%2.1f_%2.1f" % (
+        telStr = "O:%2.1f_%2.1f_%2.1f" % (
             math.degrees(self.imu.roll),
             math.degrees(self.imu.pitch),
             math.degrees(self.imu.yaw))
         return telStr
 
     def genTelemStr_wing(self):
-        telStr = "%2.1f_%2.1f" % (
+        telStr = "W:%2.1f_%2.1f" % (
             self.pilot.wing_param['left']['current'],
             self.pilot.wing_param['right']['current'])
         return telStr
 
-    def genTelemStr_gps(self):
-        try:
-            data = self.gps.gpsd
-            telStr = "%s_%s_%s" % (
-                float(data.fix.latitude) / 100,
-                float(data.fix.longitude) / (-100),
-                data.fix.altitude,
-            )
-        except:
-            telStr = ""
-        return telStr
+    def send_glider_data(self):
+        data = [self.genTelemStr_orientation(), self.genTelemStr_wing()]
+        self.radio.send_data(data)
 
-    def genTelemStr_msg(self):
-        telStr = ""
-        if self.message:
-            # enforce some length on it.. though it shouldn't be a problem
-            telStr = self.message[:50]
-            self.message = ""
-        return telStr
-    # END --------
-    ######################################################################
+    def send_telemetry(self):
+        hhmmss = int(time.strftime("%H%M%S"))
+        gps_fix = self.gps.getFix()
+        lon_dec_deg, lat_dec_deg = self.gps.getLonLatDeg()
+        alt = gps_fix.altitude
+        lat_dil = gps_fix.epx
+        temp1 = 0
+        temp2 = 0
+        pressure = 0
+        self.radio.send_telem(hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure)
 
     def telemLoop(self):
         while self.threadAlive:
             try:
-                hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure = self.constructTelemetry()
-                self.radio.send_telem(hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure)
+                now = time.time()
+                if now - self.glider_data_lastsent > self.glider_data_interval:
+                    self.send_glider_data()
+                    self.glider_data_lastsent = now
+                if now - self.telemetry_lastsent > self.telemetry_interval:
+                    self.send_telemetry()
+                    self.telemetry_lastsent = now
             except:
                 LOG.error(traceback.format_exc())
-            time.sleep(self.broadcast_interval)
+            time.sleep(0.1)
 
     def start(self):
         LOG.info("Starting Telemetry thread")

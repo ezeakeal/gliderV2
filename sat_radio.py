@@ -9,9 +9,6 @@ class SatRadio(object):
     DEFAULT_SHORT_ADDR = 'FFFE'
     MODE_P2P="POINT_TO_POINT"
     MODE_P2MP="POINT_TO_MULTIPOINT"
-    # Addresses
-    ADDR_GLIDER_GROUNDSTATION = "0013A200408BDF64"
-    ADDR_GLIDER = "0013A200408BCAE9"
 
     def __init__(self, port, callsign, baud_rate=115200, callback=None):
         serial_port = serial.Serial(port, baud_rate)
@@ -100,16 +97,10 @@ class SatRadio(object):
             data=self._encode_data(data), 
             frame_id=frame_id
         )
+        self.frame_count = ((self.frame_count + 1) % 250) + 1
         # Are we ready to move on
-        # send_time = time.time()
         while not self._transmit_complete():
-            # if time.time() - send_time > 3: # 3 seconds
-                # break
             time.sleep(sleep_time)
-        if self._transmit_complete():
-            self.frame_count = ((self.frame_count + 1) % 250) + 1
-        # else:
-            # print "Packet lost: %s" % frame_id
         return frame_id
 
     def send_telem(self, hhmmss, 

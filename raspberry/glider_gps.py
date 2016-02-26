@@ -43,5 +43,12 @@ class GPS_USB(object):
     def getFix(self):
         return self.gpsd.fix
 
+    def getLonLatDeg(self):
+        lat = self.gpsd.fix.latitude
+        lon = self.gpsd.fix.longitude
+        lat = int(lat) + (lat % 1)/.60
+        lon = int(lon) + (lon % 1)/.60
+        return lon, lat
+
     def getTime(self):
         return self.gpsd.utc

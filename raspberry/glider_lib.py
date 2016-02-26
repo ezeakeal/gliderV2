@@ -12,7 +12,7 @@ from glider_gps import GPS_USB
 from glider_pilot import Pilot
 from glider_telem import TelemetryHandler
 from glider_camera import GliderCamera
-from sat_radio import SatRadio
+from glider_radio import GliderRadio
 
 import RPi.GPIO as GPIO
 # http://raspi.tv/2013/automatic-exposure-compensation-testing-for-the-pi-camera
@@ -58,7 +58,7 @@ def dataHandler(packet):
 GPS = GPS_USB()
 ORIENT = IMU()
 CAMERA = GliderCamera()
-RADIO = SatRadio("/dev/ttyAMA0", "GliderV2", callback=dataHandler)
+RADIO = GliderRadio("/dev/ttyAMA0", "GliderV2", callback=dataHandler)
 PILOT = Pilot(ORIENT, desired_pitch=math.radians(-10))
 TELEM = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
 

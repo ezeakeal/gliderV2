@@ -20,7 +20,7 @@ class GliderCamera(object):
 
     def __init__(self, 
         low_quality_interval=15,
-        high_quality_interval=10,
+        high_quality_interval=60,
         photo_path="/tmp"):
         self.photo_path = photo_path
         self.last_low_pic = time.time()
