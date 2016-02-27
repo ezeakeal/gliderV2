@@ -32,7 +32,8 @@ class TelemetryHandler():
         self.imu = imu
         self.pilot = pilot
         self.gps = gps
-        
+        self.glider_state = None
+
         self.glider_data_interval = 0.2
         self.glider_data_lastsent = time.time()
         self.telemetry_interval = 60
@@ -52,7 +53,11 @@ class TelemetryHandler():
         return telStr
 
     def send_glider_data(self):
-        data = [self.genTelemStr_orientation(), self.genTelemStr_wing()]
+        data = [
+            self.genTelemStr_orientation(), 
+            self.genTelemStr_wing(), 
+            "S:%s" % self.glider_state
+        ]
         self.radio.send_data(data)
 
     def send_telemetry(self):
@@ -65,6 +70,9 @@ class TelemetryHandler():
         temp2 = 0
         pressure = 0
         self.radio.send_telem(hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure)
+
+    def set_state(self, state):
+        self.glider_state = state
 
     def telemLoop(self):
         while self.threadAlive:

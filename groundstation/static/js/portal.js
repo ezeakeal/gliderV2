@@ -1,6 +1,5 @@
 
 $(document).ready(function () {
-    check_alert();
     init();
     setupWings();
 
@@ -68,12 +67,20 @@ function setupWings(){
 function renderTelemetry(telemJSON){
     function addToIDByKey(key, val){
         var sel = '#'+key;
+        console.log("Selector: " + sel + " Val: " + val);
         $(sel).html(val);
     };
+    $.each(telemJSON, addToIDByKey);
 
-    $.each(telemJSON['orientation'], addToIDByKey);
-    $.each(telemJSON['wing'], addToIDByKey);
-    $.each(telemJSON['gps'], addToIDByKey);
+    $('#W_L').html(telemJSON['wings'][0])
+    $('#W_R').html(telemJSON['wings'][1])
+    $('#O_R').html(telemJSON['orientation'][0])
+    $('#O_P').html(telemJSON['orientation'][1])
+    $('#O_Y').html(telemJSON['orientation'][2])
+    $('#STATE').html(telemJSON['state'][0])
+
+    $.each(telemJSON['state'], addToIDByKey);
+    $.each(telemJSON['images'], addToIDByKey);
 
     // Update wing angles
     $('.dial').each(function(){
@@ -84,15 +91,10 @@ function renderTelemetry(telemJSON){
 }
 
 function handleTelemetry(telemJSON){
+    console.log(telemJSON);
     renderTelemetry(telemJSON)
     updateMarker(telemJSON);
-}
-
-function check_alert(){
-    var message = getParameterByName('msg');
-    $.notify({
-        'message': message
-    });
+    handleImages(telemJSON);
 }
 
 function getParameterByName(name) {

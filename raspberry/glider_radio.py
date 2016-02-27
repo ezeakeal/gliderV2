@@ -28,8 +28,8 @@ class GliderRadio(SatRadio):
         SatRadio.__init__(self, port, callsign, baud_rate=baud_rate, callback=callback)
 
     def send_data(self, data):
-        LOG.debug("Sending Data: %s" % data)
         address = self.ADDR_GLIDER_GROUNDSTATION
+        LOG.debug("Sending Data: %s to %s" % (data, address))
         packet = "|".join(["D"] + data)
         self.send_packet(packet, address=address, mode=self.MODE_P2P)
 

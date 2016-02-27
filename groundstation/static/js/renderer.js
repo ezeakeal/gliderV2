@@ -110,13 +110,15 @@ function animate() {
 }
 
 function render(telemJSON) {
-    if (gliderObj) {
-        gliderObj.rotation.x = de2ra(parseFloat(telemJSON['orientation']['O_P']));
-        gliderObj.rotation.y = de2ra(parseFloat(telemJSON['orientation']['O_Y']) * -1);
-        gliderObj.rotation.z = de2ra(parseFloat(telemJSON['orientation']['O_R']));
+    if ('orientation' in telemJSON) {
+        if (gliderObj) {
+            gliderObj.rotation.x = de2ra(parseFloat(telemJSON['orientation'][1]));
+            gliderObj.rotation.y = de2ra(parseFloat(telemJSON['orientation'][2]));
+            gliderObj.rotation.z = de2ra(parseFloat(telemJSON['orientation'][0]) * -1);
+        }
+        camera.lookAt( cameraTarget );
+        renderer.render( scene, camera );
     }
-    camera.lookAt( cameraTarget );
-    renderer.render( scene, camera );
 }
 
 function onDocumentMouseMove( event ) {

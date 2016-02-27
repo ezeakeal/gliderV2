@@ -14,10 +14,10 @@ print "Starting glider.."
 try:
     import glider_lib
     import glider_schedule as schedule
-    from glider_states import healthCheck, ascent, release, glide, parachute, recovery, errorState
 except:
     print traceback.print_exc()
     sys.exit(1)
+from glider_states import *
 
 ##########################################
 # TODO
@@ -38,7 +38,7 @@ STATE_MACHINE = {
     "RECOVER"       : recovery(),
     "ERROR"         : errorState()
 }
-CURRENT_STATE = "ASCENT"
+CURRENT_STATE = "HEALTH_CHECK"
 RUNNING = True
 
 ##########################################
@@ -88,6 +88,7 @@ def runGliderStateMachine():
                 LOG.debug("State is being updated from (%s) to (%s)" % (
                     CURRENT_STATE, newState))
                 CURRENT_STATE = newState
+                glider_lib.set_current_state(CURRENT_STATE) # for reference (sent in telemetry)
         except:
             LOG.error(traceback.print_exc())
             CURRENT_STATE = "ERROR"

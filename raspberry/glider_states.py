@@ -82,7 +82,7 @@ class healthCheck(gliderState):
             self.wingCheck()
         # Get the location data, figure if locked
         location = glider_lib.getLocation()
-        locationLocked = (location.get("fixQual") != 0 and location.get("horDil") < 5)
+        locationLocked = (location.epx < 5)
         # Get battery data. Figure if healthy
         batteryStatus = glider_lib.getBatteryStatus()
         batteryHealthy = batteryStatus.get("health")

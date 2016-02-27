@@ -66,6 +66,7 @@ TELEM = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
 # GLOBALS
 ##########################################
 OVERRIDE_STATE = None
+CURRENT_STATE = None
 
 # --- LED ---
 LED_RUNNING = 11
@@ -117,6 +118,10 @@ def setOverrideState(newstate):
     LOG.info("Setting override state: %s" % newstate)
     OVERRIDE_STATE = newstate
 
+def set_current_state(current_state):
+    global CURRENT_STATE
+    CURRENT_STATE = current_state
+    TELEM.set_state(CURRENT_STATE)
 
 def setPitchAngle(newAngle):
     try:
@@ -156,7 +161,7 @@ def getBatteryStatus():
 
 
 def getLocation():
-    location = GPS.getData()
+    location = GPS.getFix()
     return location
 
 

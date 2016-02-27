@@ -1,19 +1,31 @@
+<style>
+  #telemPacket dt {
+    width: 70px;
+  }
+  #telemPacket dd {
+    margin-left: 80px;
+  }
+  
+</style>
+
 <h4>Last telemetry packet:</h4>
-  <div id="telemPacket" class="well well-sm">
-    <dl class="text-left">
+  <div id="telemPacket" style="color:#888">
+    <dl class="dl-horizontal">
       <dt>State:</dt>
       <dd id="STATE"></dd>
+      <dt>HHMMSS:</dt>
+      <dd id="hhmmss"></dd>
       
       <hr/>
       
       <dt>Lon:</dt>
-      <dd id="G_LON"></dd>
+      <dd id="lon"></dd>
       <dt>Lat:</dt>
-      <dd id="G_LAT"></dd>
+      <dd id="lat"></dd>
       <dt>Alt:</dt>
-      <dd id="G_ALT"></dd>
-      <dt>Qty:</dt>
-      <dd id="G_QTY"></dd>
+      <dd id="alt"></dd>
+      <dt>Dilution:</dt>
+      <dd id="gps_dil"></dd>
       
       <hr/>
       
@@ -23,6 +35,11 @@
       <dd id="O_R"></dd>
       <dt>Yaw:</dt>
       <dd id="O_Y"></dd>
+
+      <dt>Temp1:</dt>
+      <dd id="temp1"></dd>
+      <dt>Temp2:</dt>
+      <dd id="temp2"></dd>
     </dl>
 
     </dl>

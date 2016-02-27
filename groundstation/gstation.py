@@ -8,6 +8,8 @@
 ##############################################
 
 import sys
+sys.path.append("/home/dvagg/Dropbox/satellite/")
+
 import math
 import time
 import json
@@ -22,136 +24,103 @@ import tornado.ioloop
 import tornado.websocket
 import tornado.httpserver
 
-
-from transceiver import Transceiver, DryTransceiver
+import sat_radio
+from packet_handlers import TelemetryHandler, ImageHandler, DataHandler
 
 #####################################
 # GLOBALS
 #####################################
 RADIO = None
-TELEMFILE = "telem.raw"
-LAST_TELEM = None
-CURRENT_TELEM = {}
 SOCKETS = []
+RAWFILE = "output/raw.data"
+TelemetryHandler = TelemetryHandler()
+ImageHandler = ImageHandler()
+DataHandler = DataHandler()
+
 
 #####################################
 # UTIL
 #####################################
 # Manage Ctrl+C gracefully
-
-
 def signal_handler_quit(signal, frame):
     logging.info("Shutting down GroundStation")
     shutdown()
     sys.exit(0)
 
-
 def startup(xbee_path):
     global RADIO
-
-    if not DRYRUN:
-        RADIO = Transceiver(xbee_path, 9600, datahandler=data_handler)
-        logging.debug("Created Radio instance")
-    else:
-        RADIO = DryTransceiver(datahandler=dry_data_handler)
-        logging.debug("Created Dry Radio instance")
-
-    if RADIO:
-        logging.debug("Starting up Radio")
-        RADIO.start()
-
+    RADIO = sat_radio.SatRadio(xbee_path, "GliderGroundstation", callback=data_handler)
 
 def shutdown():
     logging.debug("Shutting down components")
-    if RADIO and not DRYRUN:
+    if RADIO:
         logging.debug("Shutting down RADIO")
         RADIO.stop()
 
 
-def parse_data(raw_data):
+#####################################
+# Data Handler
+#####################################
+def data_handler(packet):
+    logging.debug("I received raw data: %s" % packet)
+    try:
+        with open(RAWFILE, "a") as rawFile:
+            rawFile.write("%s"% packet)
+        parse_packet(packet)
+        push_data()
+    except Exception, e:
+        traceback.print_exc(file=sys.stdout)
+
+
+def parse_packet(data):
+    if 'rf_data' not in data.keys():
+        return
+    packet = data['rf_data']
+    logging.debug("Parsing packet data: %s" % packet)
     dataDict = {}
-    msgParts = raw_data.split("&")
-    for dat in msgParts:
-        dataParts = dat.split("=")
-        dataKey = dataParts[0]
-        dataVal = "=".join(dataParts[1:])
-        # Conditionally load the dataDictionary
-        if (dataKey == "O"):
-            dataDict['orientation'] = parseTelemStr_orientation(dataVal)
-        if (dataKey == "W"):
-            dataDict['wing'] = parseTelemStr_wing(dataVal)
-        if (dataKey == "G"):
-            dataDict['gps'] = parseTelemStr_gps(dataVal)
-        if (dataKey == "I"):
-            dataDict['image'] = parseTelemStr_image(dataVal)
-        if (dataKey == "M"):
-            dataDict['msg'] = parseTelemStr_msg(dataVal)
-    return dataDict
+    data_parts = packet.split("|")
+    packet_type = data_parts[0]
+    packet_data = data_parts[1:]
+    if packet_type == "T":
+        TelemetryHandler.parse(packet_data)
+    if packet_type == "I":
+        ImageHandler.parse(packet_data)
+    if packet_type == "D":
+        DataHandler.parse(packet_data)
+    
 
-###################################
-# TELEM PARSERS
-###################################
-
-
-def parseTelemStr_orientation(telemStr):
-    dataObj = {}
-    telemStrParts = telemStr.split("_")
-    dataObj['O_R'] = telemStrParts[0]
-    dataObj['O_P'] = telemStrParts[1]
-    dataObj['O_Y'] = telemStrParts[2]
-    return dataObj
-
-
-def parseTelemStr_wing(telemStr):
-    dataObj = {}
-    telemStrParts = telemStr.split("_")
-    dataObj['W_L'] = telemStrParts[0]
-    dataObj['W_R'] = telemStrParts[1]
-    return dataObj
-
-
-def parseTelemStr_gps(telemStr):
-    dataObj = {}
-    telemStrParts = telemStr.split("_")
-    dataObj['G_LAT'] = telemStrParts[0]
-    dataObj['G_LON'] = telemStrParts[1]
-    dataObj['G_ALT'] = telemStrParts[2]
-    dataObj['G_QTY'] = telemStrParts[3]
-    return dataObj
-
-
-def parseTelemStr_image(telemStr):
-    dataObj = None
-    return dataObj
-
-
-def parseTelemStr_msg(telemStr):
-    dataObj = None
-    return dataObj
+def push_data():
+    data_dictionary = {}
+    data_dictionary.update(TelemetryHandler.get_dict())
+    data_dictionary.update(ImageHandler.get_dict())
+    data_dictionary.update(DataHandler.get_dict())
+    for socket in SOCKETS:
+        socket.write_message(data_dictionary)
+    logging.debug("Current Telem: %s" % json.dumps(data_dictionary, indent=2))
 
 
 ###################################
 # COMMAND HANDLERS
 ###################################
-def sendCommand_pitch(pitch):
-    res = RADIO.write("PA_%2.2f" % pitch)
-    return res
+def sendCommand(command):
+    glider_addr = RADIO.ADDR_GLIDER
+    response = RADIO.send_packet(command, address=glider_addr)
+    logging.debug("Command response: %s" % response)
 
+def sendCommand_pitch(pitch):
+    return sendCommand("PA_%2.2f" % pitch)
 
 def sendCommand_state(state):
-    res = RADIO.write("O_%s" % state)
-    return res
-
+    return sendCommand("O_%s" % state)
 
 def sendCommand_severity(severity):
-    res = RADIO.write("TS_%s" % severity)
-    return res
-
+    return sendCommand("TS_%s" % severity)
 
 def sendCommand_location(lon, lat):
-    res = RADIO.write("DEST_%s_%s" % (lon, lat))
-    return res
+    return sendCommand("DEST_%s_%s" % (lon, lat))
 
+def sendCommand_get_image(image):
+    return sendCommand("IMAGE")
 
 #################################
 # Configure Logging for pySel
@@ -169,60 +138,10 @@ def createParser():
         'xbee', action='store', help='Path to XBee interface', default="/dev/ttyUSB0")
     parser.add_argument('-v', '--verbose', action='count',
                         default=0, help='Increases verbosity of logging.')
-    parser.add_argument(
-        '-d', '--dry', action='store_true', help='Do not set up the radio.')
 
     return parser
 
 
-#####################################
-# Data Handler
-#####################################
-def data_handler(data):
-    global CURRENT_TELEM, LAST_TELEM
-    logging.debug("I received raw data: %s" % data)
-
-    parsed_data = parse_data(data)
-    logging.debug("Parsed data: %s" % parsed_data)
-
-    if parsed_data:
-        LAST_TELEM = parsed_data
-        CURRENT_TELEM.update(LAST_TELEM)
-        # Now we send this data to all of the clients to our socket handler
-        # Alternatively, older clients can use AJAX
-        for socket in SOCKETS:
-            socket.write_message(LAST_TELEM)
-
-    with open(TELEMFILE, "a") as telemFile:
-        telemFile.write(data)
-    logging.debug("Current Telem: %s" % json.dumps(CURRENT_TELEM, indent=2))
-
-
-def dry_data_handler():
-    global CURRENT_TELEM, LAST_TELEM
-
-    millis = time.time()
-    orientation = parseTelemStr_orientation("%s_%s_%s" % (
-        math.sin(millis) * 10, math.cos(millis) * 5, math.cos(millis / 2)))
-    wing = parseTelemStr_wing("%s_%s" % (
-        90 + math.sin(millis) * 90, 90 + math.cos(millis) * 90))
-    gps = parseTelemStr_gps("%s_%s_%s_%s" % (
-        30 + math.sin(millis * 2), -7 + math.sin(millis / 2), math.sin(millis * 2) * 500, 1))
-
-    logging.debug("Making fake telemtry")
-    LAST_TELEM = {
-        "wing": wing, 
-        "gps": gps, 
-        "orientation": orientation
-    }
-    CURRENT_TELEM.update(LAST_TELEM)
-    
-    for socket in SOCKETS:
-        socket.write_message(LAST_TELEM)
-
-    with open(TELEMFILE, "a") as telemFile:
-        telemFile.write(json.dumps(LAST_TELEM))
-    logging.debug("Current Telem: %s" % json.dumps(CURRENT_TELEM, indent=2))
 
 
 #####################################
@@ -256,8 +175,6 @@ class MainHandler(tornado.web.RequestHandler):
 class TelemHandler(tornado.web.RequestHandler):
 
     def get(self):
-        if DRYRUN:
-            generateFakeTelem()
         self.write(json.dumps(CURRENT_TELEM))
 
 
@@ -280,26 +197,26 @@ class CommandHandler(tornado.web.RequestHandler):
         severity = self.get_argument('severity', None)
         lon = self.get_argument('lon', None)
         lat = self.get_argument('lat', None)
+        image = self.get_argument('image', None)
 
-        if not DRYRUN:
-            if pitch:
-                response = sendCommand_pitch(pitch)
-            if state:
-                response = sendCommand_state(state)
-            if severity:
-                response = sendCommand_severity(severity)
-            if lon and lat:
-                response = sendCommand_location(lon, lat)
-        else:
-            response = "Dryrun.."
-
+        if pitch:
+            response = sendCommand_pitch(pitch)
+        if state:
+            response = sendCommand_state(state)
+        if severity:
+            response = sendCommand_severity(severity)
+        if lon and lat:
+            response = sendCommand_location(lon, lat)
+        if image:
+            response = sendCommand_get_image(image)
         self.set_status(200)
-        self.redirect('/?msg=%s' % response)
+        self.redirect('/')
 
 
 def runWebServer():
     applicaton = Application()
     http_server = tornado.httpserver.HTTPServer(applicaton)
+    print "GO TO: http://localhost:8888/"
     http_server.listen(8888)
     tornado.ioloop.IOLoop.instance().start()
 
@@ -308,14 +225,11 @@ def runWebServer():
 # MAIN
 #####################################
 def main():
-    global DRYRUN
-
     parser = createParser()
     results = parser.parse_args()
     # Use the args
     loglevel = results.verbose
     xbee_path = results.xbee
-    DRYRUN = results.dry
 
     signal.signal(signal.SIGINT, signal_handler_quit)  # Manage Ctrl+C
     configureLogging(loglevel)
