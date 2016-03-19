@@ -6,7 +6,12 @@
 #   Daniel Vagg 2015
 #
 ##############################################
+import os
+import log
+import logging
 
+LOG = log.setup_custom_logger('groundstation')
+LOG.setLevel(logging.WARNING)
 
 #####################################
 # DATA HANDLERS
@@ -79,32 +84,37 @@ class DataHandler(object):
 
 
 class ImageHandler(object):
-    def __init__(self, output_dir="output/images/"):
+    def __init__(self, output_dir="static/images/"):
         self.output_dir = output_dir
         self.current_image = None
+        self.current_image_file = None
         self.last_image = None
         self.image_list = []
     
     def _start_image(self, name):
-        image_path = os.path.join(self.output_dir, name)
+        image_path = os.path.join(self.output_dir, os.path.basename(name))
         self.current_image = image_path
+        self.current_image_file = open(image_path, "wb")
 
-    def _store_image_part(self, image_part):
-        with open(self.current_image, "a") as image:
-            image.write(image_part)
-    
+    def _store_image_part(self, image_index, image_part):
+        self.current_image_file.write(image_part)
+
     def _end_image(self):
         self.last_image = self.current_image
-        self.image_list.append(self.last_image)
+        self.current_image_file.close()
+        self.image_list.insert(0, self.last_image)
         self.current_image = None
     
     def parse(self, packet_parts):
         image_signal = packet_parts[0]
         if image_signal == "S":
+            print "Started receiving new image"
             self._start_image(packet_parts[1])
         if image_signal == "P" and self.current_image:
-            self._store_image_part(packet_parts[1])
+            print "Receiving image part %s" % packet_parts[1]
+            self._store_image_part(packet_parts[1], "|".join(packet_parts[2:]))
         if image_signal == "E":
+            print "Finished receiving image (%s)" % self.current_image
             self._end_image()
         
     def get(self, index=-1):

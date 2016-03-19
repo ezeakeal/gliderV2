@@ -34,7 +34,7 @@ class TelemetryHandler():
         self.gps = gps
         self.glider_state = None
 
-        self.glider_data_interval = 0.2
+        self.glider_data_interval = 1
         self.glider_data_lastsent = time.time()
         self.telemetry_interval = 60
         self.telemetry_lastsent = time.time()

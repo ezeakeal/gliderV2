@@ -13,7 +13,7 @@ from threading import Thread
 # http://ava.upuaut.net/?p=768
 
 LOG = log.setup_custom_logger("Camera")
-LOG.setLevel(logging.DEBUG)
+LOG.setLevel(logging.WARNING)
 
 
 class GliderCamera(object):
@@ -72,9 +72,9 @@ class GliderCamera(object):
         timestamp = datetime.now().strftime("%H%M%S%f")
         out_path = os.path.join(self.photo_path, "low_%s.jpg" % timestamp)
         with self.get_cam("low") as camera:
-            camera.capture("/tmp/low_first_pass.jpg", format="jpeg", quality=10)
-            image = Image.open("/tmp/low_first_pass.jpg")
-            image.convert('P', palette=Image.ADAPTIVE, colors=255).convert("RGB").save(out_path, "JPEG", quality=40, optimize=True)
+            camera.capture("/tmp/precompressed.jpg", format="jpeg", quality=40)
+            image = Image.open("/tmp/precompressed.jpg")
+            image.convert('P', palette=Image.ADAPTIVE, colors=128).convert("RGB").save(out_path, "JPEG", quality=10, optimize=True)
         return out_path
 
     def take_high_pic(self):
@@ -89,13 +89,13 @@ class GliderCamera(object):
             now = time.time() 
             if self.video_requested:
                 out_path = self._take_video()
-                LOG.error("Created video: %s" % out_path)
+                LOG.debug("Created video: %s" % out_path)
             if now - self.last_low_pic > self.low_quality_interval:
                 out_path = self.take_low_pic()
-                LOG.error("Created low pic: %s" % out_path)
+                LOG.debug("Created low pic: %s" % out_path)
             if now - self.last_high_pic > self.high_quality_interval:
                 out_path = self.take_high_pic()
-                LOG.error("Created high pic: %s" % out_path)
+                LOG.debug("Created high pic: %s" % out_path)
             time.sleep(1)
 
     def start(self):

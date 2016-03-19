@@ -113,8 +113,8 @@ function render(telemJSON) {
     if ('orientation' in telemJSON) {
         if (gliderObj) {
             gliderObj.rotation.x = de2ra(parseFloat(telemJSON['orientation'][1]));
-            gliderObj.rotation.y = de2ra(parseFloat(telemJSON['orientation'][2]));
-            gliderObj.rotation.z = de2ra(parseFloat(telemJSON['orientation'][0]) * -1);
+            gliderObj.rotation.y = -1 * de2ra(parseFloat(telemJSON['orientation'][2]));
+            gliderObj.rotation.z = de2ra(parseFloat(telemJSON['orientation'][0]));
         }
         camera.lookAt( cameraTarget );
         renderer.render( scene, camera );

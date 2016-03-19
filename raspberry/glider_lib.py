@@ -3,6 +3,7 @@ import log
 import math
 import glob
 import logging
+import traceback
 import subprocess
 
 import glider_ATMegaController as controller
@@ -21,25 +22,39 @@ import RPi.GPIO as GPIO
 LOG = log.setup_custom_logger('glider_lib')
 LOG.setLevel(logging.WARNING)
 
-
+data_dump = "/data/data_received.dump"
+data_dump_file = None
 ##########################################
 # FUNCTION - Received instruction!
 ##########################################
 def dataHandler(packet):
     global OVERRIDE_STATE
-    LOG.info("Data packet recieved: %s" % packet)
-    packetParts = packet.split("_")
-    LOG.info("Data parts: %s" % packetParts)
-    instruct = packetParts[0]
-    data = packetParts[1:]
-    if instruct == "O":
-        setOverrideState("_".join(data))
-    if instruct == "PA":
-        setPitchAngle(data[0])
-    if instruct == "TS":
-        setTurnSeverity(data[0])
-    if instruct == "DEST":
-        setDestination(data[0], data[1])
+    try:
+        packet_type = packet['id']
+        data_dump_file.write("%s\n")
+        LOG.debug("Data packet (%s) recieved: %s" % (packet_type, packet))
+        if packet_type == "rx":
+            LOG.warning("RX packet (%s) recieved: %s" % (packet_type, packet))
+            packet_data = packet['rf_data']
+            data_parts = packet_data.split("|")
+            LOG.info("Data parts: %s" % data_parts)
+            if len(data_parts) < 2:
+                return
+            instruct = data_parts[0]
+            data = data_parts[1:]
+            LOG.warning("Data instruct(%s) data(%s)" % (instruct, data))
+            if instruct == "O":
+                setOverrideState("|".join(data))
+            if instruct == "PA":
+                setPitchAngle(data[0])
+            if instruct == "TS":
+                setTurnSeverity(data[0])
+            if instruct == "DEST":
+                setDestination(data[0], data[1])
+            if instruct == "IMAGE":
+                sendImage()
+    except Exception, e:
+        LOG.error(traceback.format_exc())
 
 
 ##########################################
@@ -77,7 +92,9 @@ LED_RUNNING = 11
 
 
 def startUp():
+    global data_dump_file
     LOG.info("Starting up")
+    data_dump_file = open(data_dump, 'w')
     # Reset the SPI interface for some reason..
     controller.reset_spi()
     # Set up some flashy lights
@@ -96,7 +113,9 @@ def startUp():
     
 
 def shutDown():
+    global data_dump_file
     LOG.info("Shutting down")
+    data_dump_file.close()
     TELEM.stop()
     PILOT.stop()
     GPS.stop()
@@ -115,7 +134,7 @@ def getOverrideState():
 
 def setOverrideState(newstate):
     global OVERRIDE_STATE
-    LOG.info("Setting override state: %s" % newstate)
+    LOG.warning("Setting override state: %s" % newstate)
     OVERRIDE_STATE = newstate
 
 def set_current_state(current_state):

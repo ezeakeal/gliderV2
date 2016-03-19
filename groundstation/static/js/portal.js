@@ -67,7 +67,6 @@ function setupWings(){
 function renderTelemetry(telemJSON){
     function addToIDByKey(key, val){
         var sel = '#'+key;
-        console.log("Selector: " + sel + " Val: " + val);
         $(sel).html(val);
     };
     $.each(telemJSON, addToIDByKey);

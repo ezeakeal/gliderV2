@@ -10,6 +10,7 @@
 import sys
 sys.path.append("/home/dvagg/Dropbox/satellite/")
 
+import log
 import math
 import time
 import json
@@ -27,6 +28,9 @@ import tornado.httpserver
 import sat_radio
 from packet_handlers import TelemetryHandler, ImageHandler, DataHandler
 
+LOG = log.setup_custom_logger('groundstation')
+LOG.setLevel(logging.WARNING)
+
 #####################################
 # GLOBALS
 #####################################
@@ -43,7 +47,7 @@ DataHandler = DataHandler()
 #####################################
 # Manage Ctrl+C gracefully
 def signal_handler_quit(signal, frame):
-    logging.info("Shutting down GroundStation")
+    LOG.info("Shutting down GroundStation")
     shutdown()
     sys.exit(0)
 
@@ -52,9 +56,9 @@ def startup(xbee_path):
     RADIO = sat_radio.SatRadio(xbee_path, "GliderGroundstation", callback=data_handler)
 
 def shutdown():
-    logging.debug("Shutting down components")
+    LOG.debug("Shutting down components")
     if RADIO:
-        logging.debug("Shutting down RADIO")
+        LOG.debug("Shutting down RADIO")
         RADIO.stop()
 
 
@@ -62,7 +66,7 @@ def shutdown():
 # Data Handler
 #####################################
 def data_handler(packet):
-    logging.debug("I received raw data: %s" % packet)
+    LOG.debug("I received raw data: %s" % packet)
     try:
         with open(RAWFILE, "a") as rawFile:
             rawFile.write("%s"% packet)
@@ -76,7 +80,7 @@ def parse_packet(data):
     if 'rf_data' not in data.keys():
         return
     packet = data['rf_data']
-    logging.debug("Parsing packet data: %s" % packet)
+    LOG.debug("Parsing packet data: %s" % packet)
     dataDict = {}
     data_parts = packet.split("|")
     packet_type = data_parts[0]
@@ -96,7 +100,7 @@ def push_data():
     data_dictionary.update(DataHandler.get_dict())
     for socket in SOCKETS:
         socket.write_message(data_dictionary)
-    logging.debug("Current Telem: %s" % json.dumps(data_dictionary, indent=2))
+    # LOG.debug("Current Telem: %s" % json.dumps(data_dictionary, indent=2))
 
 
 ###################################
@@ -104,45 +108,39 @@ def push_data():
 ###################################
 def sendCommand(command):
     glider_addr = RADIO.ADDR_GLIDER
-    response = RADIO.send_packet(command, address=glider_addr)
-    logging.debug("Command response: %s" % response)
+    LOG.debug("Sending command: '%s' to (%s)" % (command, glider_addr))
+    command = "".join([chr(ord(c)) for c in command]) # YES ITS THE FUCKING SAME
+    # But no.. it's not. Not if the string comes from the dropdown list in the 
+    # web page. Because even though the characters are what you'd expect.. they
+    # arent the same. I compared and checked.. it's black magic.
+    response = RADIO.send_packet("%s" % command, address=glider_addr)
+    LOG.debug("Command response: %s" % (response))
 
 def sendCommand_pitch(pitch):
-    return sendCommand("PA_%2.2f" % pitch)
+    return sendCommand("PA|%2.2f" % pitch)
 
 def sendCommand_state(state):
-    return sendCommand("O_%s" % state)
+    return sendCommand("O|%s" % state)
 
 def sendCommand_severity(severity):
-    return sendCommand("TS_%s" % severity)
+    return sendCommand("TS|%s" % severity)
 
 def sendCommand_location(lon, lat):
-    return sendCommand("DEST_%s_%s" % (lon, lat))
+    return sendCommand("DEST|%s|%s" % (lon, lat))
 
 def sendCommand_get_image(image):
-    return sendCommand("IMAGE")
+    return sendCommand("IMAGE|0")
 
 #################################
-# Configure Logging for pySel
+# Util
 #################################
-def configureLogging(numeric_level):
-    if not isinstance(numeric_level, int):
-        numeric_level = 0
-    logging.basicConfig(
-        level=numeric_level, format='%(asctime)s [%(levelname)s in %(module)s] %(message)s',  datefmt='%Y/%m/%dT%I:%M:%S')
-
-
 def createParser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'xbee', action='store', help='Path to XBee interface', default="/dev/ttyUSB0")
     parser.add_argument('-v', '--verbose', action='count',
                         default=0, help='Increases verbosity of logging.')
-
     return parser
-
-
-
 
 #####################################
 # WEB SERVER
@@ -152,17 +150,18 @@ def createParser():
 class Application(tornado.web.Application):
 
     def __init__(self):
-        handlers = [
-            (r"/", MainHandler),
-            (r"/getTelem", TelemHandler),
-            (r"/getTelemSocket", TelemHandlerSocket),
-            (r"/postCommand", CommandHandler),
-        ]
         settings = {
             "template_path": gsettings.TEMPLATE_PATH,
             "static_path": gsettings.STATIC_PATH,
             "debug": True,
         }
+        handlers = [
+            (r"/", MainHandler),
+            (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': gsettings.STATIC_PATH}),
+            (r"/getTelem", TelemHandler),
+            (r"/getTelemSocket", TelemHandlerSocket),
+            (r"/postCommand", CommandHandler),
+        ]
         tornado.web.Application.__init__(self, handlers, **settings)
 
 
@@ -193,7 +192,7 @@ class CommandHandler(tornado.web.RequestHandler):
 
     def post(self):
         pitch = self.get_argument('pitch', None)
-        state = self.get_argument('state', None)
+        state = self.get_argument('select_state', None)
         severity = self.get_argument('severity', None)
         lon = self.get_argument('lon', None)
         lat = self.get_argument('lat', None)
@@ -232,7 +231,6 @@ def main():
     xbee_path = results.xbee
 
     signal.signal(signal.SIGINT, signal_handler_quit)  # Manage Ctrl+C
-    configureLogging(loglevel)
 
     startup(xbee_path)
     runWebServer()
