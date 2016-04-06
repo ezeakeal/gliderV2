@@ -111,7 +111,7 @@ class healthCheck(gliderState):
         time.sleep(wingMoveInterval)
         glider_lib.center_wings()
         self.checkedWings = True
-        
+
 #-----------------------------------
 #         Ascent
 #-----------------------------------
@@ -186,7 +186,7 @@ class rate_ascent(gliderState):
         currentTime = time.time()
         if currentTime > self.releaseTime:
             self.readyToSwitch = True 
-        return super(switch, self).switch()
+        return super(rate_ascent, self).switch()
         
 
 class ascent(gliderState):
@@ -212,7 +212,7 @@ class ascent(gliderState):
         location = glider_lib.getLocation()
         if location.altitude > self.desiredAltitude:
             self.readyToSwitch = True
-        return super(switch, self).switch()
+        return super(ascent, self).switch()
         
 #-----------------------------------
 #         Release

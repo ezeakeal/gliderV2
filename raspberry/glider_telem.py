@@ -10,8 +10,8 @@ import math
 import json
 import logging
 import traceback
+import dateutil.parser
 from threading import Thread
-
 
 # GUIDE
 # http://ava.upuaut.net/?p=768
@@ -61,8 +61,13 @@ class TelemetryHandler():
         self.radio.send_data(data)
 
     def send_telemetry(self):
-        hhmmss = int(time.strftime("%H%M%S"))
         gps_fix = self.gps.getFix()
+        hhmmss = int(time.strftime("%H%M%S"))
+        if gps_fix:
+            try:
+                hhmmss = int(dateutil.parser.parse(self.gps.gpsd.utc).strftime("%H%M%S"))
+            except:
+                pass
         lon_dec_deg, lat_dec_deg = self.gps.getLonLatDeg()
         alt = gps_fix.altitude
         lat_dil = gps_fix.epx
