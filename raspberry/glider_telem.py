@@ -74,6 +74,9 @@ class TelemetryHandler():
     def set_state(self, state):
         self.glider_state = state
 
+    def set_message(self, message):
+        self.radio.send_data(["M:%s" % message])
+
     def telemLoop(self):
         while self.threadAlive:
             try:

@@ -12,8 +12,8 @@ Servo detachServo;
 
 int angWingL = 90;
 int angWingR = 90;
-int angParachute = 90;
-int angDetach = 90;
+int angParachute = 170;
+int angDetach = 166;
 
 char command_buff [16];
 bool commandReady = false;

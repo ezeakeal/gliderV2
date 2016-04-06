@@ -49,6 +49,7 @@ function setTelemSocket(){
 
 function parseTelemetryData(telemData){
     telemJSON =  JSON.parse(telemData);
+    telemJSON.lon = telemJSON.lon * -1
     TELEMETRY = telemJSON;
     window.handleTelemetry(TELEMETRY);
 }

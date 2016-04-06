@@ -82,7 +82,7 @@ class healthCheck(gliderState):
             self.wingCheck()
         # Get the location data, figure if locked
         location = glider_lib.getLocation()
-        locationLocked = (location.epx < 5)
+        locationLocked = (location.epx < 20 and location.epy < 20)
         # Get battery data. Figure if healthy
         batteryStatus = glider_lib.getBatteryStatus()
         batteryHealthy = batteryStatus.get("health")
@@ -115,7 +115,7 @@ class healthCheck(gliderState):
 #-----------------------------------
 #         Ascent
 #-----------------------------------
-class ascent(gliderState):
+class rate_ascent(gliderState):
     def __init__(self):
         super(ascent, self).__init__()
         self.ascent_nodes = []
@@ -188,6 +188,32 @@ class ascent(gliderState):
             self.readyToSwitch = True 
         return super(switch, self).switch()
         
+
+class ascent(gliderState):
+    def __init__(self):
+        super(ascent, self).__init__()
+        self.sleepTime = 5
+        self.desiredAltitude = 22000
+        self.nextState = "RELEASE"
+        self.wing_angle_acc = 0
+
+    def execute(self):
+        LOG.info("ASCENDING!")
+        # Keep moving the wings to stop grease freezing in servos
+        self.wing_angle_acc += .2
+        wing_angles = [
+            90 + 10*math.cos(self.wing_angle_acc),
+            96 + 10*math.cos(self.wing_angle_acc)
+        ]
+        LOG.info("Setting wing angles: %s" % wing_angles)
+        glider_lib.setWingAngle(wing_angles)
+
+    def switch(self):
+        location = glider_lib.getLocation()
+        if location.altitude > self.desiredAltitude:
+            self.readyToSwitch = True
+        return super(switch, self).switch()
+        
 #-----------------------------------
 #         Release
 #-----------------------------------
@@ -200,6 +226,7 @@ class release(gliderState):
 
     def execute(self):
         LOG.info("Playing song")
+        glider_lib.releaseChord()
         song = subprocess.Popen(self.song_cmd)
         time.sleep(self.releaseDelay)
         LOG.info("Releasing cable")
@@ -226,15 +253,16 @@ class glide(gliderState):
         # Get our new location
         LOG.debug("Figuring out location")
         self.location = glider_lib.getLocation()
-        LOG.debug("Current Location: %s" % self.location)
+        LOG.debug("Current Location: \nLAT:%s LON:%s ALT:%s" % (
+            self.location.latitude, self.location.longitude, self.location.altitude))
         # Update the pilot
         glider_lib.updatePilotLocation(self.location)
         # Update the servos
         glider_lib.updateWingAngles()
         
     def switch(self):
-        if (self.location and self.location['alt'] and 
-            self.location['alt'] < self.parachute_height):
+        if (self.location and self.location.altitude and 
+            self.location.altitude < self.parachute_height):
             self.readyToSwitch = True
         return super(glide, self).switch()
 

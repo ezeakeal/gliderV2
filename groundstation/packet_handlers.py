@@ -8,6 +8,7 @@
 ##############################################
 import os
 import log
+import time
 import logging
 
 LOG = log.setup_custom_logger('groundstation')
@@ -26,11 +27,11 @@ class TelemetryHandler(object):
             "temp1", "temp2", "pressure"
         ]
         with open(self.output, "a") as output:
-            output.write("# " + ",".join(self.components))
+            output.write("# " + ",".join(self.components) + "\n")
     
     def _store_packet(self, packet_parts):
         with open(self.output, "a") as output:
-            output.write(",".join(packet_parts))
+            output.write(",".join(packet_parts) + "\n")
 
     def parse(self, packet_parts):
         self.last_packet = packet_parts
@@ -57,11 +58,14 @@ class DataHandler(object):
         self.last_packet = None
         self.components = {"wings": [], "orientation": [], "state": []}
         with open(self.output, "a") as output:
-            output.write("# " + ",".join(self.components.keys()))
+            output.write("# time," + ",".join(sorted(self.components.keys())) + "\n")
     
     def _store_packet(self, packet_parts):
         with open(self.output, "a") as output:
-            output.write(",".join(packet_parts))
+            log_components = ["%s" % time.time()]
+            for key in sorted(self.components.keys()):
+                log_components.append(" ".join(self.components[key]))
+            output.write(",".join(log_components) + "\n")
 
     def parse(self, packet_parts):
         for packet in packet_parts:

@@ -185,7 +185,7 @@ def getLocation():
 
 
 def sendMessage(msg):
-    TELEM.setMessage(msg)
+    TELEM.set_message(msg)
 
 
 def sendImage():
@@ -194,7 +194,7 @@ def sendImage():
 
 
 def updatePilotLocation(location):
-    PILOT.updateLocation(location['lat'], location['lon'])
+    PILOT.updateLocation(location.latitude, location.longitude)
 
 
 #################

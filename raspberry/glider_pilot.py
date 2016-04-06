@@ -10,6 +10,22 @@ from threading import Thread
 LOG = log.setup_custom_logger('pilot')
 LOG.setLevel(logging.WARNING)
 
+
+# 2016-02-26 09:17:31,549 - WARNING - glider_states - Location is not locked yet
+# 2016-02-26 09:17:31,550 - INFO - glider_states - Next state: ASCENT
+# 2016-02-26 09:17:31,551 - WARNING - glider_lib - Setting override state: None
+# 2016-02-26 09:17:31,572 - DEBUG - glider_states - Figuring out location
+# 2016-02-26 09:17:31,573 - DEBUG - glider_states - Current Location: <gps.gps.gpsfix instance at 0x14edbe8>
+# Traceback (most recent call last):
+#   File "glider.py", line 74, in runGliderStateMachine
+#     stateClass.execute()
+#   File "/opt/glider/glider_states.py", line 231, in execute
+#     glider_lib.updatePilotLocation(self.location)
+#   File "/opt/glider/glider_lib.py", line 197, in updatePilotLocation
+#     PILOT.updateLocation(location['lat'], location['lon'])
+# AttributeError: gpsfix instance has no attribute '__getitem__'
+# 2016-02-26 09:17:31,582 - ERROR - glider - None
+
 class Pilot(object):
     """
     Pilot class for translating our heading, orientation, and desired 

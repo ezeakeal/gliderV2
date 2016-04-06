@@ -69,7 +69,7 @@ def data_handler(packet):
     LOG.debug("I received raw data: %s" % packet)
     try:
         with open(RAWFILE, "a") as rawFile:
-            rawFile.write("%s"% packet)
+            rawFile.write("%s\n" % packet)
         parse_packet(packet)
         push_data()
     except Exception, e:

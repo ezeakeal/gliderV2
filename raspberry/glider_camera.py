@@ -74,7 +74,7 @@ class GliderCamera(object):
         with self.get_cam("low") as camera:
             camera.capture("/tmp/precompressed.jpg", format="jpeg", quality=40)
             image = Image.open("/tmp/precompressed.jpg")
-            image.convert('P', palette=Image.ADAPTIVE, colors=128).convert("RGB").save(out_path, "JPEG", quality=10, optimize=True)
+            image.convert('P', palette=Image.ADAPTIVE, colors=200).convert("RGB").save(out_path, "JPEG", quality=20, optimize=True)
         return out_path
 
     def take_high_pic(self):
