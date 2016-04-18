@@ -20,7 +20,7 @@ from threading import Thread
 # GLOBALS
 ##########################################
 LOG = log.setup_custom_logger('telemetry')
-LOG.setLevel(logging.WARN)
+LOG.setLevel(logging.DEBUG)
 
 
 class TelemetryHandler():
@@ -33,11 +33,14 @@ class TelemetryHandler():
         self.pilot = pilot
         self.gps = gps
         self.glider_state = None
+        self.alien_gps_dump = {}
 
         self.glider_data_interval = 1
         self.glider_data_lastsent = time.time()
-        self.telemetry_interval = 60
+        self.telemetry_interval = 20
         self.telemetry_lastsent = time.time()
+        self.aliendatadump_interval = 300
+        self.aliendatadump_lastsent = time.time()
 
     def genTelemStr_orientation(self):
         telStr = "O:%2.1f_%2.1f_%2.1f" % (
@@ -71,10 +74,21 @@ class TelemetryHandler():
         lon_dec_deg, lat_dec_deg = self.gps.getLonLatDeg()
         alt = gps_fix.altitude
         lat_dil = gps_fix.epx
+        if math.isnan(lat_dil):
+            lat_dil = 99.99
+        if math.isnan(alt):
+            alt = 0
         temp1 = 0
         temp2 = 0
         pressure = 0
-        self.radio.send_telem(hhmmss, lon_dec_deg, lat_dec_deg, lat_dil, alt, temp1, temp2, pressure)
+        self.radio.send_telem(hhmmss, lat_dec_deg, lon_dec_deg, lat_dil, alt, temp1, temp2, pressure)
+
+    def send_aliendatadump(self):
+        LOG.info("Echoing %s telemetry packets" % len(self.alien_gps_dump.keys()))
+        for callsign, telemtry_packet in self.alien_gps_dump.items():
+            LOG.info("Echoing %s telemetry packets" % callsign)
+            self.radio.send_packet(telemtry_packet, mode=self.radio.MODE_P2MP)
+            time.sleep(0.5)
 
     def set_state(self, state):
         self.glider_state = state
@@ -92,6 +106,9 @@ class TelemetryHandler():
                 if now - self.telemetry_lastsent > self.telemetry_interval:
                     self.send_telemetry()
                     self.telemetry_lastsent = now
+                if now - self.aliendatadump_lastsent > self.aliendatadump_interval:
+                    self.send_aliendatadump()
+                    self.aliendatadump_lastsent = now
             except:
                 LOG.error(traceback.format_exc())
             time.sleep(0.1)

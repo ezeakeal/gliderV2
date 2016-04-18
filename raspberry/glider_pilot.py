@@ -8,23 +8,8 @@ from threading import Thread
 # GLOBALS
 ##############################################
 LOG = log.setup_custom_logger('pilot')
-LOG.setLevel(logging.WARNING)
+LOG.setLevel(logging.WARN)
 
-
-# 2016-02-26 09:17:31,549 - WARNING - glider_states - Location is not locked yet
-# 2016-02-26 09:17:31,550 - INFO - glider_states - Next state: ASCENT
-# 2016-02-26 09:17:31,551 - WARNING - glider_lib - Setting override state: None
-# 2016-02-26 09:17:31,572 - DEBUG - glider_states - Figuring out location
-# 2016-02-26 09:17:31,573 - DEBUG - glider_states - Current Location: <gps.gps.gpsfix instance at 0x14edbe8>
-# Traceback (most recent call last):
-#   File "glider.py", line 74, in runGliderStateMachine
-#     stateClass.execute()
-#   File "/opt/glider/glider_states.py", line 231, in execute
-#     glider_lib.updatePilotLocation(self.location)
-#   File "/opt/glider/glider_lib.py", line 197, in updatePilotLocation
-#     PILOT.updateLocation(location['lat'], location['lon'])
-# AttributeError: gpsfix instance has no attribute '__getitem__'
-# 2016-02-26 09:17:31,582 - ERROR - glider - None
 
 class Pilot(object):
     """
@@ -35,7 +20,7 @@ class Pilot(object):
     def __init__(self, IMU, 
         desired_yaw=0, desired_pitch=-0.175, 
         turn_severity=.5, servo_range=0.5236,
-        destination=[52.254197,-7.181244],
+        destination=[54.145948,-7.185059],
         location=[52.254197,-7.181244],
         wing_calc_interval=0.02):
         
@@ -121,6 +106,7 @@ class Pilot(object):
             current_pitch = self.IMU.pitch
             current_roll = self.IMU.roll
             current_yaw = self.IMU.yaw
+            LOG.debug("\nCalculating wing angles")
             LOG.debug("P(%2.1f) R(%2.1f) Y(%2.1f)" % (
                 math.degrees(current_pitch), math.degrees(current_roll), math.degrees(current_yaw)))
             # Initialize the wing adjustments at 0
@@ -136,8 +122,9 @@ class Pilot(object):
             LOG.debug("Delta wings = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left), math.degrees(wing_right)))
 
             # Calculate a desired roll from our yaw
-            deltaYaw = min(self.desired_yaw - current_yaw, 
-                current_yaw - self.desired_yaw)
+            LOG.debug("Desired/Current yaw: %2.2f/%2.2f" % (math.degrees(self.desired_yaw), math.degrees(current_yaw)))
+            deltaYaw = self.desired_yaw - current_yaw
+            deltaYaw = (deltaYaw + math.pi) % (2*math.pi) - (math.pi)
             desired_roll = self.getDesiredRoll(deltaYaw)
             LOG.debug("Delta yaw: %2.1f (roll: %2.1f)" % (math.degrees(deltaYaw), math.degrees(desired_roll)))
 
@@ -174,19 +161,20 @@ class Pilot(object):
 
 
     def updateDestination(self, lat, lon):
-        self.destination[0] = lat
-        self.destination[1] = lon
+        self.destination[0] = float(lat)
+        self.destination[1] = float(lon)
         return self.destination
 
 
     def updateDesiredYaw(self):
         # http://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
-        x1, y1 = self.location[0], self.location[1]
-        x2, y2 = self.destination[0], self.destination[1]
-        LOG.debug("X1 %s Y2 %s" % (x1, y1))
-        LOG.debug("X2 %s Y2 %s" % (x2, y2))
-        if None in [x1, x2, y1, y2]:
-            LOG.warning("Some coordinates are blank")
+        x1, y1 = float(self.location[0]), float(self.location[1])
+        x2, y2 = float(self.destination[0]), float(self.destination[1])
+        LOG.warning("X1 %s Y2 %s" % (x1, y1))
+        LOG.warning("X2 %s Y2 %s" % (x2, y2))
+        all_coord = [x1, x2, y1, y2]
+        if None in all_coord or min([abs(x) for x in all_coord]) == 0:
+            LOG.warning("Some coordinates are blank/0")
             return
         # Convert gps coordinates to radian degrees
         lon1, lat1, lon2, lat2 = map(math.radians, [y1, x1, y2, x2])
@@ -195,7 +183,7 @@ class Pilot(object):
             math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2-lon1)
         )
         bearing = (bearing + (2*math.pi)) % (2*math.pi)
-        LOG.debug("ANG %s" % (bearing))
+        LOG.warning("ANG %s" % math.degrees(bearing))
         self.desired_yaw = bearing
 
 

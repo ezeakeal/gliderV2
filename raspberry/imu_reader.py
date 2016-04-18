@@ -8,7 +8,7 @@ import math
 import redis
 
 
-SETTINGS_FILE = "RTIMULib"
+SETTINGS_FILE = "/RTIMULib"
 print("Using settings file " + SETTINGS_FILE + ".ini")
 if not os.path.exists(SETTINGS_FILE + ".ini"):
   print("Settings file does not exist, will be created")
@@ -45,4 +45,5 @@ while True:
     redis_client.set("p", p)
     redis_client.set("r", r)
     redis_client.set("y", y)
+
     time.sleep(poll_interval*1.0/1000.0)

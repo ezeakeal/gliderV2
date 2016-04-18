@@ -1,8 +1,8 @@
 // Servos
-#define LEFT_SERVO 6
-#define RIGHT_SERVO 5
-#define PARACHUTE_SERVO 3
-#define DETACH_SERVO 9
+#define PARACHUTE_SERVO 6
+#define RIGHT_SERVO 9
+#define DETACH_SERVO 5
+#define LEFT_SERVO 3
 
 void hook_servos()
 {
@@ -40,7 +40,7 @@ void processData() {
   }
 
   if(strstr(command_buff, "P:")) {
-    angParachute = 0;
+    angParachute = 45;
   }
 }
 

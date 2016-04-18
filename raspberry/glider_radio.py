@@ -21,7 +21,7 @@ from sat_radio import SatRadio
 # GLOBALS
 ##########################################
 LOG = log.setup_custom_logger('radio')
-LOG.setLevel(logging.WARNING)
+LOG.setLevel(logging.WARN)
 
 class GliderRadio(SatRadio):
     

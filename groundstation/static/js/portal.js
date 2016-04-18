@@ -12,7 +12,6 @@ $(document).ready(function () {
     }
     
     animate();
-    hookMapUpdateTimer();
     $('#gliderTabs').click(function(){
         setTimeout(function(){
             window.dispatchEvent(new Event('resize')); // Forces resize event for iframe resizes
@@ -39,11 +38,10 @@ function setTelemAjax(){
 
 function setTelemSocket(){
     console.log("Creating websocket")    
-    var ws = new WebSocket("ws://localhost:8888/getTelemSocket");
+    var ws = new WebSocket("ws://localhost/getTelemSocket");
 
     ws.onmessage = function(event) {
         parseTelemetryData(event.data);
-        console.log(event.data);
     }
 }
 
@@ -91,7 +89,6 @@ function renderTelemetry(telemJSON){
 }
 
 function handleTelemetry(telemJSON){
-    console.log(telemJSON);
     renderTelemetry(telemJSON)
     updateMarker(telemJSON);
     handleImages(telemJSON);

@@ -31,10 +31,13 @@ def dataHandler(packet):
     global OVERRIDE_STATE
     try:
         packet_type = packet['id']
-        data_dump_file.write("%s\n")
+        if data_dump_file:
+            data_dump_file.write("%s\n")
+        else:
+            LOG.warning("Data dump not open yet")
         LOG.debug("Data packet (%s) recieved: %s" % (packet_type, packet))
         if packet_type == "rx":
-            LOG.warning("RX packet (%s) recieved: %s" % (packet_type, packet))
+            LOG.info("RX packet (%s) recieved: %s" % (packet_type, packet))
             packet_data = packet['rf_data']
             data_parts = packet_data.split("|")
             LOG.info("Data parts: %s" % data_parts)
@@ -42,7 +45,7 @@ def dataHandler(packet):
                 return
             instruct = data_parts[0]
             data = data_parts[1:]
-            LOG.warning("Data instruct(%s) data(%s)" % (instruct, data))
+            LOG.info("Data instruct(%s) data(%s)" % (instruct, data))
             if instruct == "O":
                 setOverrideState("|".join(data))
             if instruct == "PA":
@@ -53,6 +56,8 @@ def dataHandler(packet):
                 setDestination(data[0], data[1])
             if instruct == "IMAGE":
                 sendImage()
+            if instruct == "T":
+                storeAlienTelemetry(packet_data, data[0])
     except Exception, e:
         LOG.error(traceback.format_exc())
 
@@ -71,7 +76,7 @@ def dataHandler(packet):
 # YOU WANTED TO!
 ##############################################
 GPS = GPS_USB()
-ORIENT = IMU()
+ORIENT = IMU(yaw_offset=-1) # yaw should be 0 when north
 CAMERA = GliderCamera()
 RADIO = GliderRadio("/dev/ttyAMA0", "GliderV2", callback=dataHandler)
 PILOT = Pilot(ORIENT, desired_pitch=math.radians(-10))
@@ -100,7 +105,7 @@ def startUp():
     # Set up some flashy lights
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(LED_RUNNING, GPIO.OUT)
-    # Start GPS thread
+    # Start GPS threadstoreAlienTelemetry
     GPS.start()
     # Start the Pilot
     PILOT.start()
@@ -167,34 +172,9 @@ def speak(text, speed=150):
         subprocess.Popen(["espeak", "-k10 -s%s" % (speed), text], stdout=devnull, stderr=devnull)
 
 
-##########################################
-# FUNCTIONS - Standard Operations
-##########################################
-def getBatteryStatus():
-    status = {
-        "health": True,
-        "level": None,
-        "temp": None
-    }
-    return status
-
-
-def getLocation():
-    location = GPS.getFix()
-    return location
-
-
-def sendMessage(msg):
-    TELEM.set_message(msg)
-
-
 def sendImage():
     newest_image = max(glob.iglob('%s/low_*.jpg' % CAMERA.photo_path), key=os.path.getctime)
     RADIO.sendImage(newest_image)
-
-
-def updatePilotLocation(location):
-    PILOT.updateLocation(location.latitude, location.longitude)
 
 
 #################
@@ -240,3 +220,11 @@ def releaseChord():
 def releaseParachute():
     CAMERA.take_video(15)
     controller.W_glider_command("P:")
+
+
+########################
+# Alien Telemetry
+########################
+def storeAlienTelemetry(telemetry_string, callsign):
+    LOG.debug("Storing Alien Telemetry for %s: (%s)" % (callsign, telemetry_string))
+    TELEM.alien_gps_dump[callsign] = telemetry_string

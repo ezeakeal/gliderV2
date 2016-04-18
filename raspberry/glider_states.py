@@ -15,7 +15,7 @@ import glider_states as states
 # GLOBALS
 ##########################################
 LOG = log.setup_custom_logger('state_controller')
-LOG.setLevel(logging.DEBUG)
+LOG.setLevel(logging.WARN)
 ##########################################
 # FUNCTIONS - UTIL
 ##########################################
@@ -81,20 +81,16 @@ class healthCheck(gliderState):
         if not self.checkedWings:
             self.wingCheck()
         # Get the location data, figure if locked
-        location = glider_lib.getLocation()
+        location = glider_lib.GPS.getFix()
         locationLocked = (location.epx < 20 and location.epy < 20)
         # Get battery data. Figure if healthy
-        batteryStatus = glider_lib.getBatteryStatus()
-        batteryHealthy = batteryStatus.get("health")
         if not locationLocked:
             LOG.warning("Location is not locked yet")
-        elif not batteryHealthy:
-            LOG.warning("Battery not healthy")
         else:
             # Seems all is good
             LOG.info("Health Check Passed")
             glider_lib.speak("Health Check Complete")
-            glider_lib.sendMessage("Health Good")
+            glider_lib.TELEM.set_message("Health Good")
             self.readyToSwitch = True
     
     def wingCheck(self):
@@ -115,80 +111,6 @@ class healthCheck(gliderState):
 #-----------------------------------
 #         Ascent
 #-----------------------------------
-class rate_ascent(gliderState):
-    def __init__(self):
-        super(ascent, self).__init__()
-        self.ascent_nodes = []
-        self.ascent_rates = []
-        self.median_ascent_rate = 0
-        self.sleepTime = 1
-        self.minAltDelta = 500
-        self.minRateCount = 10
-        self.desiredAltitude = 22000
-        self.releaseTime = None
-        self.nextState = "RELEASE"
-        self.wing_angle_acc = 0
-
-    def execute(self):
-        LOG.info("ASCENDING!")
-        # Keep moving the wings to stop grease freezing in servos
-        self.wing_angle_acc += .2
-        wing_angles = [
-            90 + 10*math.cos(self.wing_angle_acc),
-            96 + 10*math.cos(self.wing_angle_acc)
-        ]
-        LOG.info("Setting wing angles: %s" % wing_angles)
-        glider_lib.setWingAngle(wing_angles)
-        # Find the nodes we have hit on the way up
-        lastNode = None
-        if len(self.ascent_nodes) > 0:
-            lastNode = self.ascent_nodes[-1]
-        if not lastNode:
-            return
-        # Ok, we have a lastNode now so we can do some work
-        location  = glider_lib.getLocation()
-        currentAlt = location['altitude']
-        lastNodeAlt = lastNode['altitude']
-        if (lastNodeAlt - currentAlt) < self.minAltDelta:
-            return
-        # Alright, we are sufficiently far from the last node for this to be a decent measurement
-        timeSeconds = time.time()
-        newNode = {
-            'altitude': location['altitude'],
-            'time': timeSeconds
-        }
-        # Append that node
-        self.ascent_nodes.append(newNode)
-        # Ensure there are enough nodes to get a decent calculation from
-        if len(self.ascent_nodes) < 2:
-            return
-        # We have 2 nodes, lets rock with our first ascent rate
-        deltaAlt = newNode['altitude'] - lastNode['altitude']
-        deltaSec = newNode['time'] - lastNode['time']
-        newRate = deltaAlt / deltaSec
-        # Append the rate of ascent
-        self.ascent_rates.append(newRate)
-        if len(self.ascent_rates) < self.minRateCount:
-            LOG.debug("Not enough ascent rates have been recorded: %s" % self.ascent_rates)
-            return
-        # So now we calculate the median rate of ascents and send her up!
-        self.median_ascent_rate = numpy.median(numpy.array(self.ascent_rates))
-        LOG.debug("Calculated ascent rate at: %s" % self.median_ascent_rate)
-        remainingAltitude = self.desiredAltitude - location['altitude']
-        remainingSeconds = remainingAltitude / self.median_ascent_rate
-        glider_lib.sendMessage("Alt (%s) Rate (%s) SecRemain(%s)" % (
-            location['altitude'], newRate, remainingSeconds))
-
-    def switch(self):
-        if not self.releaseTime:
-            return
-        # Figure out if we have passed that time
-        currentTime = time.time()
-        if currentTime > self.releaseTime:
-            self.readyToSwitch = True 
-        return super(rate_ascent, self).switch()
-        
-
 class ascent(gliderState):
     def __init__(self):
         super(ascent, self).__init__()
@@ -209,7 +131,10 @@ class ascent(gliderState):
         glider_lib.setWingAngle(wing_angles)
 
     def switch(self):
-        location = glider_lib.getLocation()
+        location = glider_lib.GPS.getFix()
+        LOG.info("Checking alt (%s) > target (%s)" % (
+            location.altitude, self.desiredAltitude
+        ))
         if location.altitude > self.desiredAltitude:
             self.readyToSwitch = True
         return super(ascent, self).switch()
@@ -226,7 +151,6 @@ class release(gliderState):
 
     def execute(self):
         LOG.info("Playing song")
-        glider_lib.releaseChord()
         song = subprocess.Popen(self.song_cmd)
         time.sleep(self.releaseDelay)
         LOG.info("Releasing cable")
@@ -245,23 +169,37 @@ class glide(gliderState):
     def __init__(self):
         super(glide, self).__init__()
         self.nextState = "PARACHUTE"
-        self.parachute_height = -1500
+        self.parachute_height = 2000
         self.location = None
         self.sleepTime = 0.02
+        self.recalculate_iter = 0 # Counter to reduce CPU load
+        self.recalculate_iter_delay = 30 # Update every 20 or so seconds
 
     def execute(self):
-        # Get our new location
-        LOG.debug("Figuring out location")
-        self.location = glider_lib.getLocation()
-        LOG.debug("Current Location: \nLAT:%s LON:%s ALT:%s" % (
-            self.location.latitude, self.location.longitude, self.location.altitude))
-        # Update the pilot
-        glider_lib.updatePilotLocation(self.location)
+        if self.recalculate_iter == 0:
+            self.recalculate_iter = self.recalculate_iter_delay
+            # Get our new location
+            LOG.debug("Figuring out location")
+            self.location = glider_lib.GPS.getFix()
+            LOG.debug("Current Location: \nLAT:%s LON:%s ALT:%s" % (
+                self.location.latitude, self.location.longitude, self.location.altitude
+            ))
+            LOG.debug("Target Location: \nLAT:%s LON:%s" % (
+                glider_lib.PILOT.destination[0], glider_lib.PILOT.destination[1]
+            ))
+            # Update the pilot
+            glider_lib.PILOT.updateLocation(self.location.latitude, self.location.longitude)
+            # Get pilot to update bearing
+            glider_lib.PILOT.updateDesiredYaw()
         # Update the servos
+        LOG.debug("Updating angles (%s)" % self.recalculate_iter)
         glider_lib.updateWingAngles()
+        self.recalculate_iter -= 1
+
         
     def switch(self):
         if (self.location and self.location.altitude and 
+            (not math.isnan(self.location.altitude)) and
             self.location.altitude < self.parachute_height):
             self.readyToSwitch = True
         return super(glide, self).switch()
@@ -273,19 +211,20 @@ class parachute(gliderState):
     def __init__(self):
         super(parachute, self).__init__()
         self.nextState = "RECOVER"
-        self.parachute_height = 1500
-        self.location = None
         self.sleepTime = 0.02
+        self.chute_delay = 15 * (1/self.sleepTime) # 15 seconds
 
     def execute(self):
+        glider_lib.setPitchAngle(80)
         glider_lib.speak("Releasing parachute!")
-        location = glider_lib.getLocation()
-        orientation = glider_lib.getOrientation()
-        glider_lib.broadcastLocation()
-        glider_lib.releaseParachute()
+        glider_lib.updateWingAngles()
+        if self.chute_delay < 1:
+            glider_lib.releaseParachute()
+        self.chute_delay -= 1
 
     def switch(self):
-        self.readyToSwitch = True
+        if self.chute_delay < 0:
+            self.readyToSwitch = True
         return super(parachute, self).switch()
 
 

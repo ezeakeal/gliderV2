@@ -40,18 +40,9 @@ class GPS_USB(object):
     def getFix(self):
         return self.gpsd.fix
 
-    def _parse_fucked_gps_val(self, val):
-        return val
-        # Apparently it was coming in fine!
-        val_deg = int(val/100)
-        val_min = val % 100
-        return val_deg + (val_min/60)
-
     def getLonLatDeg(self):
-        fucked_lat = self.gpsd.fix.latitude
-        fucked_lon = self.gpsd.fix.longitude
-        lat = self._parse_fucked_gps_val(fucked_lat)
-        lon = self._parse_fucked_gps_val(fucked_lon)
+        lat = self.gpsd.fix.latitude
+        lon = self.gpsd.fix.longitude
         return lon, lat
 
     def getTime(self):

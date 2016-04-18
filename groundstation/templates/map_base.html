@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UCD GroundStation</title>
+
+    <!-- Bootstrap -->
+    <link href="/static/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css">
+    <link href="/static/css/groundstation_base.css" rel="stylesheet" type="text/css">
+
+    <script src="/static/jquery/js/jquery.js"></script>
+    <script src="/static/jquery/js/jquery.cookie.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js"></script>
+    
+    <script src="/static/js/groundstation.js"></script>
+    <script src="/static/js/maps.js"></script>
+
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <style>
+    html,body
+    {
+      height: 100%;
+    }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <div class="page-header">
+        <h3>2016 UCD Satellite Groundstation System [<a href="/basic">Basic</a>/Advanced]</h3>
+      </div>
+
+        <div class="row">
+            <div class="col-lg-9">
+            {% block main %}No Content{% end %}</title>
+            </div>
+            <div class="col-lg-3">
+            {% block sidebar %}No Content{% end %}</title>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <hr>
+    <footer>
+        <div class="row">
+            <div class="col-lg-12">
+                <p>Copyright © Guy Incognito 2016</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/static/bootstrap/js/bootstrap.min.js"></script>
+  </body>
+</html>
