@@ -76,10 +76,10 @@ def dataHandler(packet):
 # YOU WANTED TO!
 ##############################################
 GPS = GPS_USB()
-ORIENT = IMU(yaw_offset=-1) # yaw should be 0 when north
+ORIENT = IMU(GPS) # yaw should be 0 when north
 CAMERA = GliderCamera()
 RADIO = GliderRadio("/dev/ttyAMA0", "GliderV2", callback=dataHandler)
-PILOT = Pilot(ORIENT, desired_pitch=math.radians(-10))
+PILOT = Pilot(ORIENT, desired_pitch=-math.radians(30))
 TELEM = TelemetryHandler(RADIO, ORIENT, PILOT, GPS)
 
 ##########################################

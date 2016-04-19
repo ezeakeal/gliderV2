@@ -5,7 +5,7 @@
         <form role="form" class="form-inline" action="/postCommand" method="post">
             <div class="form-group">
                 <label for="pitch">Desired Pitch</label>
-                <input type="number" max="0" min="-90" class="form-control" name="pitch" id="pitch" placeholder="-10">
+                <input type="number" max="0" min="-90" class="form-control" name="pitch" id="pitch" placeholder="-30">
             </div>
             <button type="submit" id="pitch_submit" class="btn btn-primary">Update pitch</button>
         </form>
@@ -38,7 +38,7 @@
         <form role="form" class="form-inline" action="/postCommand" method="post">
             <div class="form-group">
                 <label for="pitch">New severity</label>
-                <input type="number" min=".1" max="5" class="form-control" name="severity" id="severity" placeholder="1">
+                <input type="number" min=".1" max="5" step=".1" class="form-control" name="severity" id="severity" placeholder="1">
             </div>
             <button type="submit" id="state_submit" class="btn btn-primary">Update severity</button>
         </form>

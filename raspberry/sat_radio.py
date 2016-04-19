@@ -11,7 +11,7 @@ class SatRadio(object):
     MODE_P2MP="POINT_TO_MULTIPOINT"
 
     ADDR_GLIDER = "0013A200408BDF64"
-    ADDR_GLIDER_GROUNDSTATION = "0013A200408BCAE9"
+    ADDR_GLIDER_GROUNDSTATION = "0013A20040A38FD1"
  
     def __init__(self, port, callsign, baud_rate=38400, callback=None):
         self.port = port

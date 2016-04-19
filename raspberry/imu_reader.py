@@ -34,7 +34,7 @@ redis_client = redis.StrictRedis(
 imu.setSlerpPower(0.02)
 imu.setGyroEnable(True)
 imu.setAccelEnable(True)
-imu.setCompassEnable(True)
+imu.setCompassEnable(False)
 
 poll_interval = imu.IMUGetPollInterval()
 

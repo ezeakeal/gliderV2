@@ -212,10 +212,10 @@ class parachute(gliderState):
         super(parachute, self).__init__()
         self.nextState = "RECOVER"
         self.sleepTime = 0.02
-        self.chute_delay = 15 * (1/self.sleepTime) # 15 seconds
+        self.chute_delay = 5 * (1/self.sleepTime) # 15 seconds
 
     def execute(self):
-        glider_lib.setPitchAngle(80)
+        glider_lib.setPitchAngle(-80)
         glider_lib.speak("Releasing parachute!")
         glider_lib.updateWingAngles()
         if self.chute_delay < 1:

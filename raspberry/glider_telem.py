@@ -20,7 +20,7 @@ from threading import Thread
 # GLOBALS
 ##########################################
 LOG = log.setup_custom_logger('telemetry')
-LOG.setLevel(logging.DEBUG)
+LOG.setLevel(logging.WARN)
 
 
 class TelemetryHandler():
@@ -56,6 +56,7 @@ class TelemetryHandler():
         return telStr
 
     def send_glider_data(self):
+        LOG.debug("Sending glider data")
         data = [
             self.genTelemStr_orientation(), 
             self.genTelemStr_wing(), 
@@ -64,6 +65,7 @@ class TelemetryHandler():
         self.radio.send_data(data)
 
     def send_telemetry(self):
+        LOG.debug("Sending glider telemetry")
         gps_fix = self.gps.getFix()
         hhmmss = int(time.strftime("%H%M%S"))
         if gps_fix:

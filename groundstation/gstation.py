@@ -14,6 +14,7 @@ import time
 import json
 import signal
 import logging
+import requests
 import argparse
 import traceback
 from datetime import datetime
@@ -48,8 +49,9 @@ DataHandler = DataHandler()
 LED_ON = 12
 LED_TX = 13
 LED_RX = 15
+TELEM_JSON = "/tmp/telem.json"
 
-RemoteServerURL = "http://tracker.ez.lv/"
+RemoteServerURL = "http://tracker.spacescience.ie/"
 
 #####################################
 # UTIL
@@ -119,7 +121,8 @@ def handle_parsed_packet(source, packet_type, packet_data, time_received):
 
 
 def push_data(source, packet_type, packet_data, time_received):
-    remote_post_url = urljoin(RemoteServerURL, "updateTelem")
+    if packet_type == "I":
+        return
     send_packet = {
         "secret_sauce": "captainmorgan",
         "source": source,
@@ -127,15 +130,8 @@ def push_data(source, packet_type, packet_data, time_received):
         "packet_data": packet_data,
         "time_received": time_received
     }
-    LOG.debug("Posting data to server: %s" % send_packet)
-    if GPIO:
-        GPIO.output(LED_TX, True)
-    try:
-        response = requests.post(remote_post_url, json=send_packet, timeout=1)
-    except:
-        pass
-    if GPIO:
-        GPIO.output(LED_TX, False)
+    with open(TELEM_JSON, 'w') as telem:
+        json.dump(send_packet, telem)
 
 
 def push_data_gstation():
@@ -169,7 +165,7 @@ def sendCommand(command, dest_addr=None):
     LOG.debug("Command response: %s" % (response))
 
 def sendCommand_pitch(pitch):
-    return sendCommand("PA|%2.2f" % pitch)
+    return sendCommand("PA|%2.2f" % float(pitch))
 
 def sendCommand_state(state):
     return sendCommand("O|%s" % state)
@@ -179,9 +175,6 @@ def sendCommand_severity(severity):
 
 def sendCommand_location(lon, lat):
     return sendCommand("DEST|%s|%s" % (lon, lat))
-
-def sendCommand_burn(image):
-    return sendCommand("BURN|0", dest_addr=RADIO.ADDR_CANSAT_1)
 
 def sendCommand_get_image(image):
     return sendCommand("IMAGE|0")
@@ -282,7 +275,6 @@ class CommandHandler(tornado.web.RequestHandler):
         lon = self.get_argument('lon', None)
         lat = self.get_argument('lat', None)
         image = self.get_argument('image', None)
-        burn = self.get_argument('burn', None)
 
         if pitch:
             response = sendCommand_pitch(pitch)
@@ -294,8 +286,6 @@ class CommandHandler(tornado.web.RequestHandler):
             response = sendCommand_location(lon, lat)
         if image:
             response = sendCommand_get_image(image)
-        if burn:
-            response = sendCommand_burn(burn)
         self.set_status(200)
         self.redirect('/')
 

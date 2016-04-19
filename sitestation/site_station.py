@@ -50,7 +50,7 @@ LED_ON = 12
 LED_TX = 13
 LED_RX = 15
 
-RemoteServerURL = "http://tracker.ez.lv/"
+RemoteServerURL = "http://tracker.spacescience.ie/"
 
 #####################################
 # UTIL
@@ -128,9 +128,9 @@ def push_data(source, packet_type, packet_data, time_received):
     if GPIO:
         GPIO.output(LED_TX, True)
     try:
-        response = requests.post(remote_post_url, json=send_packet, timeout=1)
-    except:
-        pass
+        grequests.post(remote_post_url, json=send_packet, timeout=10)
+    except Exception, e:
+        LOG.error(e)
     if GPIO:
         GPIO.output(LED_TX, False)
 

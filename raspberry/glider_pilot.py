@@ -18,9 +18,9 @@ class Pilot(object):
     """
 
     def __init__(self, IMU, 
-        desired_yaw=0, desired_pitch=-0.175, 
-        turn_severity=.5, servo_range=0.5236,
-        destination=[54.145948,-7.185059],
+        desired_yaw=0, desired_pitch=-0.52, 
+        turn_severity=1.2, servo_range=0.5236,
+        destination=[54.816069,-6.052094],
         location=[52.254197,-7.181244],
         wing_calc_interval=0.02):
         
@@ -96,7 +96,6 @@ class Pilot(object):
         tanScale = math.tan(yawDelta_rad)
         tanScale = self.scaleAbsToLimit(tanScale, 1)
         roll = self.servo_range * tanScale
-        roll *= -1 # Roll left (which is positive) if turning left (when yaw is negative)
         return roll
 
 
@@ -113,11 +112,11 @@ class Pilot(object):
             # We will add up all adjustments, then scale them to the ranges of the servos.
             wing_left = 0
             wing_right = 0
-            LOG.debug("Delta wings = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left), math.degrees(wing_right)))
             # Now adjust for pitch
             deltaPitch = self.desired_pitch - current_pitch
-            wing_left += deltaPitch
-            wing_right += deltaPitch
+            wing_left += deltaPitch # Bring both wings DOWN
+            wing_right += deltaPitch # Bring both wings DOWN
+            LOG.debug("Desired/Current: %2.1f/%2.1f" % (math.degrees(self.desired_pitch), math.degrees(current_pitch)))
             LOG.debug("Delta pitch: %2.1f" % (math.degrees(deltaPitch)))
             LOG.debug("Delta wings = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left), math.degrees(wing_right)))
 
@@ -132,8 +131,8 @@ class Pilot(object):
             LOG.debug("Delta roll: %2.1f" % (math.degrees(deltaRoll)))
 
             # Adjust the wings again for roll
-            wing_left += deltaRoll
-            wing_right -= deltaRoll
+            wing_left -= deltaRoll
+            wing_right += deltaRoll
             LOG.debug("Delta wings = L(%2.1f) R(%2.1f)" % (math.degrees(wing_left), math.degrees(wing_right)))
 
             # Scale these angles now based on maximum ranges of the servos

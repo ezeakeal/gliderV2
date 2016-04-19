@@ -33,12 +33,12 @@ function setTelemAjax(){
                 console.log(thrownError);
             },
         });
-    }, 20);
+    }, 300);
 }
 
 function setTelemSocket(){
     console.log("Creating websocket")    
-    var ws = new WebSocket("ws://localhost/getTelemSocket");
+    var ws = new WebSocket("ws://" + window.location.hostname + "/getTelemSocket");
 
     ws.onmessage = function(event) {
         parseTelemetryData(event.data);
@@ -90,7 +90,6 @@ function renderTelemetry(telemJSON){
 
 function handleTelemetry(telemJSON){
     renderTelemetry(telemJSON)
-    updateMarker(telemJSON);
     handleImages(telemJSON);
 }
 
